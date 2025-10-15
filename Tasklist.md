@@ -4,18 +4,18 @@
 
 3. Create system architecture allowing images to be transferred from Raspberry Pi to the website. (Kyle)
 
-4. Write an algorithm to take periodic screenshots of the boards and enhance images for students. (Kyle) 
+4. Write an algorithm to take periodic screenshots of the boards and enhance images for students. (Evan)
 
 5. Implement image processing, brightness enhancement, and edge correction. (Kyle)
 
 6. Design webpage for displaying images and saving lecture note for students to access on any device (Nikita)
 
-7. Develop a user authentication system so only students and those the professor allowed can view their work. 
+7. Develop a user authentication system so only students and those the professor allowed can view their work.  (Evan)
 
 8. Create a webserver to host the webpage and stream images as well as find and purchase a domain name. (Nikita)
 
-9. Design and create 3D printable encasing unit to hold the raspberry pi and adjust camera angle. 
+9. Design and create 3D printable encasing unit to hold the raspberry pi and adjust camera angle. (Evan)
 
 10. Implement data storage in order to store user data and saved notes and screenshots of the board. (Nikita)
 
-11. Create a teacher/professor control panel to adjust camera settings including upload times and saving features. 
+11. Create a teacher/professor control panel to adjust camera settings including upload times and saving features. (Evan)
