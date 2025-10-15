@@ -23,3 +23,7 @@
 12. Create a teacher/professor control panel to adjust camera settings including upload times and saving features. (Evan)
 
 13. Create user interface for both the users that will host the session and the users that and the users that will take the screenshots. (Nikita)
+
+14. Perform system integration testing between hardware, software, and web modules. (Nikita)
+
+15. Submit final report and poster presentation summarizing design, results, and lessons learned. (Kyle) 
