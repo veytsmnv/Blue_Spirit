@@ -8,14 +8,14 @@
 
 5. Implement image processing, brightness enhancement, and edge correction. (Kyle)
 
-6. Design webpage for displaying images and saving lecture note for students to access on any device 
+6. Design webpage for displaying images and saving lecture note for students to access on any device (Nikita)
 
 7. Develop a user authentication system so only students and those the professor allowed can view their work. 
 
-8. Create a webserver to host the webpage and stream images as well as find and purchase a domain name. 
+8. Create a webserver to host the webpage and stream images as well as find and purchase a domain name. (Nikita)
 
-9. Design and create 3D printable encasing unit to hold the raspberry pi and adjust camera angle.
+9. Design and create 3D printable encasing unit to hold the raspberry pi and adjust camera angle. 
 
-10. Implement data storage in order to store user data and saved notes and screenshots of the board. 
+10. Implement data storage in order to store user data and saved notes and screenshots of the board. (Nikita)
 
 11. Create a teacher/professor control panel to adjust camera settings including upload times and saving features. 
