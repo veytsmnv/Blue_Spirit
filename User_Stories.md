@@ -24,6 +24,7 @@ This diagram shows the users need for this application, then the user uses the a
 
 
 **Design level 3-**
+This Diagram shows end to end involvement with what the professor/teacher needs to do and the students for a successful run of our application.
 
 
 <img width="1870" height="1267" alt="d3" src="https://github.com/user-attachments/assets/938e3577-7ad5-4074-b523-15c0e9947d44" />
