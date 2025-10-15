@@ -1,3 +1,5 @@
+**Nikita Veytsman, Kyle Mares, Evan Noyes**
+
 **Part 1:**
 As a professor, I want to easily capture the notes I write on my whiteboard so that my students can access all of the course material.
 
