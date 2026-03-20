@@ -33,3 +33,18 @@ app.post("/capture", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
+const fs = require("fs");
+
+app.get("/latest", (req, res) => {
+  const captureDir = path.join(__dirname, "capture");
+  const files = fs.readdirSync(captureDir)
+    .filter(f => f.startsWith("photo_") && f.endsWith(".jpg"))
+    .sort((a, b) => {
+      const numA = parseInt(a.replace("photo_", "").replace(".jpg", ""));
+      const numB = parseInt(b.replace("photo_", "").replace(".jpg", ""));
+      return numB - numA;
+    });
+
+  if (files.length === 0) return res.json({ filename: null });
+  res.json({ filename: files[0] });
+});
