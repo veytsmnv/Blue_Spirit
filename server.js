@@ -25,8 +25,9 @@ app.post("/capture", (req, res) => {
       return res.status(500).send("Capture failed");
     }
 
-    console.log(stdout);
-    res.send("Captured");
+    console.log("stdout:", JSON.stringify(stdout)); // add this line
+    const filename = stdout.trim().split("/").pop();
+    res.json({ filename });
   });
 });
 
