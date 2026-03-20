@@ -2,20 +2,153 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Professor Control</title>
-</head>
+  <title>Professor's View</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f5f5f5;
+      --border: #cccccc;
+      --accent: #000000;
+      --text: #000000;
+      --muted: #666;
+    }
 
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      color: var(--text);
+      letter-spacing: 0.02em;
+      line-height: 1.1;
+    }
+
+    header h1 span {
+      color: var(--text);
+    }
+
+    header p {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 300;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .divider {
+      width: 60px;
+      height: 1px;
+      background: var(--accent);
+      margin: 16px auto 0;
+      opacity: 0.6;
+    }
+
+    .capture-btn {
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 14px 40px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      margin-bottom: 16px;
+    }
+
+    .capture-btn:hover {
+      background: var(--accent);
+      color: #0f0f0f;
+    }
+
+    .capture-btn:active {
+      opacity: 0.8;
+    }
+
+    .capture-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    #status {
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      min-height: 20px;
+      margin-bottom: 32px;
+      transition: color 0.3s;
+    }
+
+    #status.success { color: #7dbf8e; }
+    #status.error { color: #bf7d7d; }
+
+    .image-frame {
+      width: 100%;
+      max-width: 900px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 12px;
+    }
+
+    .image-frame img {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: cover;
+    }
+
+    .image-label {
+      margin-top: 10px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-align: right;
+    }
+  </style>
+</head>
 <body>
 
-<h1>Professor Camera Control</h1>
+  <header>
+    <h1>Professor's <span>View</span></h1>
+    <p>Live Camera Feed</p>
+    <div class="divider"></div>
+  </header>
 
-<button id="captureBtn">Take Photo</button>
+  <button class="capture-btn" id="captureBtn">Take Photo</button>
+  <p id="status"></p>
 
-<p id="status"></p>
+  <div class="image-frame">
+    <img id="cameraFeed" src="/images/latest.jpg" alt="Camera Feed">
+    <div class="image-label">Latest Capture</div>
+  </div>
 
-<img id="cameraFeed" src="/images/latest.jpg" width="500">
-
-<script src="js/professor.js"></script>
+  <script src="js/professor.js"></script>
 
 </body>
 </html>
