@@ -1,16 +1,18 @@
+const statusEl = document.getElementById("status");
+
 document.getElementById("captureBtn").addEventListener("click", () => {
-    document.getElementById("status").textContent = "Capturing...";
+    statusEl.textContent = "Capturing...";
+    statusEl.className = "";
 
     fetch("/capture", { method: "POST" })
-        .then(res => {
-            if (res.ok) {
-                document.getElementById("status").textContent = "Photo taken!";
-                document.getElementById("cameraFeed").src = "/images/latest.jpg?t=" + Date.now();
-            } else {
-                document.getElementById("status").textContent = "Capture failed.";
-            }
+        .then(res => res.json())
+        .then(data => {
+            statusEl.textContent = "Photo taken!";
+            statusEl.className = "success";
+            document.getElementById("cameraFeed").src = "/images/" + data.filename + "?t=" + Date.now();
         })
         .catch(err => {
-            document.getElementById("status").textContent = "Error: " + err.message;
+            statusEl.textContent = "Error: " + err.message;
+            statusEl.className = "error";
         });
 });
