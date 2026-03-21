@@ -58,3 +58,7 @@ app.get("/images-list", (req, res) => {
     });
   res.json({ files });
 });
+app.get("/images/:filename", (req, res) => {
+  const filepath = path.join(__dirname, "capture", req.params.filename);
+  res.download(filepath);
+});
