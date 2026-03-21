@@ -52,7 +52,7 @@ document.getElementById("captureBtn").addEventListener("click", () => {
 backBtn.addEventListener("click", () => showImage(currentIndex - 1));
 forwardBtn.addEventListener("click", () => showImage(currentIndex + 1));
 
-// Load images on startup
 loadImageList().then(() => {
+    console.log("images after load:", images);
     if (images.length > 0) showImage(images.length - 1);
-});
+}).catch(err => console.error("load failed:", err));
