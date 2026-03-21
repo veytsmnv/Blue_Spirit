@@ -24,31 +24,6 @@ function showImage(index) {
     forwardBtn.disabled = currentIndex === images.length - 1;
 }
 
-document.getElementById("captureBtn").addEventListener("click", () => {
-    statusEl.textContent = "Capturing...";
-    statusEl.className = "";
-
-    fetch("/capture", { method: "POST" })
-        .then(res => {
-            if (!res.ok) {
-                statusEl.textContent = "Capture failed.";
-                statusEl.className = "error";
-                return;
-            }
-            return res.json();
-        })
-        .then(data => {
-            if (!data) return;
-            statusEl.textContent = "Photo taken!";
-            statusEl.className = "success";
-            loadImageList().then(() => showImage(images.length - 1));
-        })
-        .catch(err => {
-            statusEl.textContent = "Error: " + err.message;
-            statusEl.className = "error";
-        });
-});
-
 backBtn.addEventListener("click", () => showImage(currentIndex - 1));
 forwardBtn.addEventListener("click", () => showImage(currentIndex + 1));
 
