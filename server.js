@@ -49,3 +49,14 @@ app.get("/latest", (req, res) => {
   if (files.length === 0) return res.json({ filename: null });
   res.json({ filename: files[0] });
 });
+app.get("/images-list", (req, res) => {
+  const captureDir = path.join(__dirname, "capture");
+  const files = fs.readdirSync(captureDir)
+    .filter(f => f.startsWith("photo_") && f.endsWith(".jpg"))
+    .sort((a, b) => {
+      const numA = parseInt(a.replace("photo_", "").replace(".jpg", ""));
+      const numB = parseInt(b.replace("photo_", "").replace(".jpg", ""));
+      return numA - numB;
+    });
+  res.json({ files });
+});
