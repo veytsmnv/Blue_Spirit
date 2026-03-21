@@ -1,7 +1,7 @@
 const express = require("express");
 const { exec } = require("child_process");
 const path = require("path");
-
+const fs = require("fs");
 const app = express();
 const PORT = 3000;
 app.use(express.static(path.join(__dirname, "user_interface")));
@@ -34,8 +34,6 @@ app.post("/capture", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
-const fs = require("fs");
-
 app.get("/latest", (req, res) => {
   const captureDir = path.join(__dirname, "capture");
   const files = fs.readdirSync(captureDir)
