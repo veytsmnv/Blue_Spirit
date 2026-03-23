@@ -112,3 +112,9 @@ header p {
   color: var(--muted);
   letter-spacing: 0.06em;
 }
+
+.download-buttons {
+  display: flex;
+  gap: 24px;
+  margin-top: 12px;
+}

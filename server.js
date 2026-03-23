@@ -68,3 +68,7 @@ app.delete("/images/:filename", (req, res) => {
         res.send("Deleted");
     });
 });
+app.get("/images/:filename", (req, res) => {
+  const filepath = path.join(__dirname, "capture", req.params.filename);
+  res.download(filepath);
+});

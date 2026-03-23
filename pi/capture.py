@@ -14,6 +14,5 @@ subprocess.run(["rpicam-jpeg", "-o", str(output)], check=True)
 # Process the image
 subprocess.run(["python", "pi/process.py", str(output), str(output)], check=True)
 
-shutil.copy(output, capture_dir / "latest.jpg")
 
 print("Saved:", output)

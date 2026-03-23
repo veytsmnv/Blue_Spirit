@@ -57,7 +57,6 @@ loadImageList().then(() => {
     if (images.length > 0) showImage(images.length - 1);
 }).catch(err => console.error("load failed:", err));
 
-
 document.getElementById("deleteBtn").addEventListener("click", () => {
     if (currentIndex === -1 || images.length === 0) return;
 
@@ -79,4 +78,23 @@ document.getElementById("deleteBtn").addEventListener("click", () => {
                 }
             }
         });
+});
+document.getElementById("downloadBtn").addEventListener("click", () => {
+    if (currentIndex === -1 || images.length === 0) return;
+    const link = document.createElement("a");
+    link.href = "/images/" + images[currentIndex];
+    link.download = images[currentIndex];
+    link.click();
+});
+
+document.getElementById("downloadAllBtn").addEventListener("click", () => {
+    if (images.length === 0) return;
+    images.forEach((filename, i) => {
+        setTimeout(() => {
+            const link = document.createElement("a");
+            link.href = "/images/" + filename;
+            link.download = filename;
+            link.click();
+        }, i * 500);
+    });
 });
