@@ -57,6 +57,28 @@ loadImageList().then(() => {
     if (images.length > 0) showImage(images.length - 1);
 }).catch(err => console.error("load failed:", err));
 
+document.getElementById("deleteBtn").addEventListener("click", () => {
+    if (currentIndex === -1 || images.length === 0) return;
+
+    const filename = images[currentIndex];
+    if (!confirm("Delete " + filename + "?")) return;
+
+    fetch("/images/" + filename, { method: "DELETE" })
+        .then(res => {
+            if (res.ok) {
+                images.splice(currentIndex, 1);
+                if (images.length === 0) {
+                    document.getElementById("cameraFeed").src = "";
+                    imageCount.textContent = "";
+                    backBtn.disabled = true;
+                    forwardBtn.disabled = true;
+                } else {
+                    currentIndex = Math.min(currentIndex, images.length - 1);
+                    showImage(currentIndex);
+                }
+            }
+        });
+});
 document.getElementById("downloadBtn").addEventListener("click", () => {
     if (currentIndex === -1 || images.length === 0) return;
     const link = document.createElement("a");
@@ -74,5 +96,35 @@ document.getElementById("downloadAllBtn").addEventListener("click", () => {
             link.download = filename;
             link.click();
         }, i * 500);
+    });
+});
+
+document.getElementById("uploadBtn").addEventListener("click", () => {
+    document.getElementById("uploadInput").click();
+});
+
+document.getElementById("uploadInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    statusEl.textContent = "Uploading...";
+    statusEl.className = "";
+
+    fetch("/upload", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        statusEl.textContent = "Uploaded!";
+        statusEl.className = "success";
+        loadImageList().then(() => showImage(images.length - 1));
+    })
+    .catch(err => {
+        statusEl.textContent = "Upload failed: " + err.message;
+        statusEl.className = "error";
     });
 });
