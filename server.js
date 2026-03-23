@@ -8,13 +8,14 @@ const app = express();
 const PORT = 3000;
 
 let lastUpdate = Date.now();
-
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, path.join(__dirname, "capture")),
     filename: (req, file, cb) => {
         const existing = fs.readdirSync(path.join(__dirname, "capture"))
-            .filter(f => f.startsWith("photo_") && f.endsWith(".jpg"));
-        const nextNum = existing.length + 1;
+            .filter(f => f.startsWith("photo_") && f.endsWith(".jpg"))
+            .map(f => parseInt(f.replace("photo_", "").replace(".jpg", "")))
+            .filter(n => !isNaN(n));
+        const nextNum = existing.length > 0 ? Math.max(...existing) + 1 : 1;
         cb(null, `photo_${nextNum}.jpg`);
     }
 });
