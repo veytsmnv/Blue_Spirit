@@ -56,3 +56,27 @@ loadImageList().then(() => {
     console.log("images after load:", images);
     if (images.length > 0) showImage(images.length - 1);
 }).catch(err => console.error("load failed:", err));
+
+
+document.getElementById("deleteBtn").addEventListener("click", () => {
+    if (currentIndex === -1 || images.length === 0) return;
+
+    const filename = images[currentIndex];
+    if (!confirm("Delete " + filename + "?")) return;
+
+    fetch("/images/" + filename, { method: "DELETE" })
+        .then(res => {
+            if (res.ok) {
+                images.splice(currentIndex, 1);
+                if (images.length === 0) {
+                    document.getElementById("cameraFeed").src = "";
+                    imageCount.textContent = "";
+                    backBtn.disabled = true;
+                    forwardBtn.disabled = true;
+                } else {
+                    currentIndex = Math.min(currentIndex, images.length - 1);
+                    showImage(currentIndex);
+                }
+            }
+        });
+});

@@ -58,3 +58,13 @@ app.get("/images-list", (req, res) => {
     });
   res.json({ files });
 });
+app.delete("/images/:filename", (req, res) => {
+    const filepath = path.join(__dirname, "capture", req.params.filename);
+    fs.unlink(filepath, (err) => {
+        if (err) {
+            console.error("Delete error:", err);
+            return res.status(500).send("Delete failed");
+        }
+        res.send("Deleted");
+    });
+});
