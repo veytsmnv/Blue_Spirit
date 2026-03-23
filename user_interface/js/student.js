@@ -67,3 +67,22 @@ loadImageList().then(() => {
         showImage(images.length - 1);
     }
 });
+document.getElementById("downloadBtn").addEventListener("click", () => {
+    if (currentIndex === -1 || images.length === 0) return;
+    const link = document.createElement("a");
+    link.href = "/download/" + images[currentIndex];
+    link.download = images[currentIndex];
+    link.click();
+});
+
+document.getElementById("downloadAllBtn").addEventListener("click", () => {
+    if (images.length === 0) return;
+    images.forEach((filename, i) => {
+        setTimeout(() => {
+            const link = document.createElement("a");
+            link.href = "/download/" + filename;
+            link.download = filename;
+            link.click();
+        }, i * 500);
+    });
+});

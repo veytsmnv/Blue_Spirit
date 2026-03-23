@@ -87,11 +87,10 @@ app.post("/upload", upload.single("image"), (req, res) => {
 });
 
 // Download route
-app.get("/images/:filename", (req, res) => {
+app.get("/download/:filename", (req, res) => {
     const filepath = path.join(__dirname, "capture", req.params.filename);
     res.download(filepath);
 });
-
 // Delete route
 app.delete("/images/:filename", (req, res) => {
     const filepath = path.join(__dirname, "capture", req.params.filename);
