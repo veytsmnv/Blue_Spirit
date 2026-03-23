@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 @app.route("/qr")
 def qr():
-    url = "http://192.168.1.84:3000/session.html"  # change later
+    url = "http://192.168.1.84:3000/student.html"  # change later
 
     img = qrcode.make(url)
 
