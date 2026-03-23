@@ -1,75 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Professor Session</title>
-  <link rel="stylesheet" href="css/styles.css" />
+  <meta charset="UTF-8">
+  <title>Professor's View</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <header class="site-header">
-    <div class="container header-inner">
-      <h1>Professor Session</h1>
-      <nav>
-        <a href="index.html">Home</a>
-        <a href="session.html" class="active">Professor Session</a>
-        <a href="gallery.html">Student Gallery</a>
-      </nav>
-    </div>
+
+  <header>
+    <h1>Professor's <span>View</span></h1>
+    <p>Live Camera Feed</p>
+    <div class="divider"></div>
   </header>
 
-  <main class="container page-layout">
-    <section class="panel">
-      <h2>Lecture Controls</h2>
+  <button class="capture-btn" id="captureBtn">Take Photo</button>
+  <p id="status"></p>
 
-      <div class="form-group">
-        <label for="sessionTitle">Lecture Title</label>
-        <input id="sessionTitle" type="text" placeholder="Ex: Physics 101 - Chapter 3" />
-      </div>
+  <div class="image-frame">
+    <img id="cameraFeed" src="" alt="Camera Feed">
+    <div class="image-label">Latest Capture</div>
+  </div>
 
-      <div class="form-group">
-        <label for="professorName">Professor Name</label>
-        <input id="professorName" type="text" placeholder="Ex: Dr. Smith" />
-      </div>
+  <script src="js/professor.js" defer></script>
 
-      <div class="button-row">
-        <button id="startSessionBtn" class="btn btn-primary">Start Session</button>
-        <button id="captureBtn" class="btn btn-accent" disabled>Capture & Upload</button>
-        <button id="endSessionBtn" class="btn btn-danger" disabled>End Session</button>
-      </div>
-
-      <div id="sessionStatus" class="status-box">
-        No active session.
-      </div>
-
-      <hr />
-
-      <h3>Manual Upload Test</h3>
-      <p class="muted">
-        Use this for development until the Raspberry Pi camera is connected.
-      </p>
-      <div class="form-group">
-        <input id="manualImageInput" type="file" accept="image/*" />
-      </div>
-      <button id="uploadManualBtn" class="btn btn-secondary" disabled>Upload Selected Image</button>
-    </section>
-
-    <section class="panel">
-      <h2>Latest Capture</h2>
-      <div id="latestCaptureContainer" class="latest-capture empty-state">
-        <p>No captures yet.</p>
-      </div>
-    </section>
-
-    <section class="panel">
-      <h2>Session Capture History</h2>
-      <div id="captureHistory" class="capture-list">
-        <p class="muted">Captured images will appear here.</p>
-      </div>
-    </section>
-  </main>
-
-  <script src="js/api.js"></script>
-  <script src="js/session.js"></script>
 </body>
+<div class="nav-buttons">
+  <button class="nav-btn" id="backBtn" disabled>← Back</button>
+  <span id="imageCount"></span>
+  <button class="nav-btn" id="forwardBtn" disabled>Forward →</button>
+</div>
+<div class="download-buttons">
+  <button class="nav-btn" id="downloadBtn">Download Current</button>
+  <button class="nav-btn" id="downloadAllBtn">Download All</button>
+</div>
 </html>
