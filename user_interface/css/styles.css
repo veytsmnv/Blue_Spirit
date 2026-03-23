@@ -118,3 +118,10 @@ header p {
   gap: 24px;
   margin-top: 12px;
 }
+.button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 16px;
+}
