@@ -14,7 +14,7 @@
 const CALIBRATION_PATH = path.join(__dirname, "calibration.json");
 
 // Save calibration sent from the browser
-app.post("/calibration", (req, res) => {
+app.post("http://localhost:3000/calibration", (req, res) => {
   const { corners, imageWidth, imageHeight, savedAt } = req.body;
 
   if (!corners || corners.length !== 4) {
@@ -29,7 +29,7 @@ app.post("/calibration", (req, res) => {
 });
 
 // Clear calibration
-app.delete("/calibration", (req, res) => {
+app.delete("http://localhost:3001/calibration", (req, res) => {
   if (fs.existsSync(CALIBRATION_PATH)) {
     fs.unlinkSync(CALIBRATION_PATH);
     console.log("Calibration deleted.");

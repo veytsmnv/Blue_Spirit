@@ -228,7 +228,7 @@ saveCalibrationBtn.addEventListener("click", () => {
   renderSavedInfo();
 
   // Also POST to backend so the Pi knows about it
-  fetch("/calibration", {
+  fetch("http://localhost:3001/calibration", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(calibration)
@@ -245,7 +245,7 @@ clearCalibrationBtn.addEventListener("click", () => {
   saveStatus.textContent = "Calibration cleared.";
   savedInfoPanel.style.display = "none";
 
-  fetch("/calibration", { method: "DELETE" }).catch(() => {});
+  fetch("http://localhost:3001/calibration", { method: "DELETE" }).catch(() => {});
 });
 
 // ─── Show saved calibration on load ──────────────────────────────────────────
