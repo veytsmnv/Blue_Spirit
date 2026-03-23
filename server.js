@@ -11,6 +11,21 @@ app.use(express.static(path.join(__dirname, "user_interface")));
 // Serve captured images
 app.use("/images", express.static(path.join(__dirname, "capture")));
 
+
+
+const multer = require("multer");
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, path.join(__dirname, "capture")),
+    filename: (req, file, cb) => {
+        const existing = fs.readdirSync(path.join(__dirname, "capture"))
+            .filter(f => f.startsWith("photo_") && f.endsWith(".jpg"));
+        const nextNum = existing.length + 1;
+        cb(null, `photo_${nextNum}.jpg`);
+    }
+});
+
+const upload = multer({ storage });
 // Test route
 app.get("/test", (req, res) => {
   res.send("Server is working");
@@ -29,6 +44,11 @@ app.post("/capture", (req, res) => {
     const filename = stdout.trim().split("/").pop();
     res.json({ filename });
   });
+});
+
+app.post("/upload", upload.single("image"), (req, res) => {
+    if (!req.file) return res.status(400).send("No file uploaded");
+    res.json({ filename: req.file.filename });
 });
 
 app.listen(PORT, () => {

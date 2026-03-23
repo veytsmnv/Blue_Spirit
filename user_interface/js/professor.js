@@ -98,3 +98,33 @@ document.getElementById("downloadAllBtn").addEventListener("click", () => {
         }, i * 500);
     });
 });
+
+document.getElementById("uploadBtn").addEventListener("click", () => {
+    document.getElementById("uploadInput").click();
+});
+
+document.getElementById("uploadInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    statusEl.textContent = "Uploading...";
+    statusEl.className = "";
+
+    fetch("/upload", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        statusEl.textContent = "Uploaded!";
+        statusEl.className = "success";
+        loadImageList().then(() => showImage(images.length - 1));
+    })
+    .catch(err => {
+        statusEl.textContent = "Upload failed: " + err.message;
+        statusEl.className = "error";
+    });
+});
