@@ -107,3 +107,26 @@ app.delete("/images/:filename", (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
 });
+const fs = require("fs");       // already imported probably
+const path = require("path");   // already imported probably
+
+const CALIBRATION_PATH = path.join(__dirname, "calibration.json");
+
+app.post("/calibration", (req, res) => {
+  const { corners, imageWidth, imageHeight, savedAt } = req.body;
+  if (!corners || corners.length !== 4) {
+    return res.status(400).json({ error: "Expected 4 corners" });
+  }
+  fs.writeFileSync(CALIBRATION_PATH, JSON.stringify({ corners, imageWidth, imageHeight, savedAt }, null, 2));
+  res.json({ ok: true });
+});
+
+app.delete("/calibration", (req, res) => {
+  if (fs.existsSync(CALIBRATION_PATH)) fs.unlinkSync(CALIBRATION_PATH);
+  res.json({ ok: true });
+});
+
+app.get("/calibration", (req, res) => {
+  if (!fs.existsSync(CALIBRATION_PATH)) return res.json(null);
+  res.json(JSON.parse(fs.readFileSync(CALIBRATION_PATH, "utf8")));
+});
