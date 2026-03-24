@@ -39,6 +39,8 @@ const saveStatus         = document.getElementById("saveStatus");
 const savedInfoPanel     = document.getElementById("savedInfoPanel");
 const savedCoordsRow     = document.getElementById("savedCoordsRow");
 
+const BASE_URL = "http://localhost:3001";
+
 // ─── State ────────────────────────────────────────────────────────────────────
 const LABELS = ["TL", "TR", "BR", "BL"];
 
@@ -172,7 +174,7 @@ function loadCalibrationImage(src) {
 calCaptureBtn.addEventListener("click", () => {
   calibrateStatus.textContent = "Capturing…";
 
-  fetch("/capture", { method: "POST" })
+  fetch(`${BASE_URL}/capture`, { method: "POST" })
     .then(res => {
       if (!res.ok) throw new Error("Capture failed");
       return res.json();
@@ -228,7 +230,7 @@ saveCalibrationBtn.addEventListener("click", () => {
   renderSavedInfo();
 
   // Also POST to backend so the Pi knows about it
-  fetch("http://localhost:3001/calibration", {
+  fetch(`${BASE_URL}/calibration`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(calibration)
@@ -245,7 +247,7 @@ clearCalibrationBtn.addEventListener("click", () => {
   saveStatus.textContent = "Calibration cleared.";
   savedInfoPanel.style.display = "none";
 
-  fetch("http://localhost:3001/calibration", { method: "DELETE" }).catch(() => {});
+  fetch(`${BASE_URL}/calibration`, { method: "DELETE" }).catch(() => {});
 });
 
 // ─── Show saved calibration on load ──────────────────────────────────────────

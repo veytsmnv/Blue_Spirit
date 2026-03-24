@@ -95,45 +95,43 @@ def process_image(input_path, output_path, calibration_path=None):
         print("Applied perspective warp.")
     else:
         print("No calibration found — skipping warp.")
-    
-    # ── Step 1: Fix uneven lighting per channel ───────────────────────────────
+
+    # ── Step 1: Very gentle lighting correction ───────────────────────────────
+    # Blend only 30% of the division result with the original
     corrected = np.zeros_like(img, dtype=np.float32)
     for i in range(3):
         channel = img[:, :, i].astype(np.float32)
         blur = cv2.GaussianBlur(channel, (51, 51), 0)
-        corrected[:, :, i] = cv2.divide(channel, blur, scale=255)
+        divided = cv2.divide(channel, blur, scale=255)
+        corrected[:, :, i] = 0.3 * divided + 0.7 * channel  # subtle blend
 
     corrected = np.clip(corrected, 0, 255).astype(np.uint8)
 
-    # ── Step 2: CLAHE on brightness channel ──────────────────────────────────
+    # ── Step 2: Very mild CLAHE ───────────────────────────────────────────────
     lab = cv2.cvtColor(corrected, cv2.COLOR_BGR2LAB)
     l, a, b = cv2.split(lab)
 
-    clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
+    clahe = cv2.createCLAHE(clipLimit=0.5, tileGridSize=(16, 16))  # was 1.5 / (8,8)
     l = clahe.apply(l)
 
     lab = cv2.merge([l, a, b])
     enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
 
-    # ── Step 3: Whiten background ─────────────────────────────────────────────
-    hsv = cv2.cvtColor(enhanced, cv2.COLOR_BGR2HSV)
-    saturation = hsv[:, :, 1]
+    # ── Step 3: Skip background whitening ────────────────────────────────────
+    # Removed — too aggressive for light edits
 
-    background_mask = saturation < 30
-    result = enhanced.copy()
-    result[background_mask] = [255, 255, 255]
-
-    # ── Step 4: Sharpen ───────────────────────────────────────────────────────
+    # ── Step 4: Very subtle sharpening ───────────────────────────────────────
+    # Blend only 25% sharpened with 75% original
     kernel = np.array([
         [ 0, -1,  0],
         [-1,  5, -1],
         [ 0, -1,  0]
     ])
-    result = cv2.filter2D(result, -1, kernel)
+    sharpened = cv2.filter2D(enhanced, -1, kernel)
+    result = cv2.addWeighted(enhanced, 0.75, sharpened, 0.25, 0)
 
     cv2.imwrite(str(output_path), result)
     print("Saved:", output_path)
-
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 
@@ -149,4 +147,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     cal_path = sys.argv[3] if len(sys.argv) > 3 else None
-    #process_image(Path(sys.argv[1]), Path(sys.argv[2]), calibration_path=cal_path)
+    process_image(Path(sys.argv[1]), Path(sys.argv[2]), calibration_path=cal_path)

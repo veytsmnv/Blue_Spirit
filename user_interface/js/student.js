@@ -2,6 +2,7 @@ const feed = document.getElementById("cameraFeed");
 const backBtn = document.getElementById("backBtn");
 const forwardBtn = document.getElementById("forwardBtn");
 const imageCount = document.getElementById("imageCount");
+const BASE_URL = "http://localhost:3001";
 
 let images = [];
 let currentIndex = -1;
@@ -9,7 +10,7 @@ let isManuallyBrowsing = false;
 let knownLastUpdate = null;
 
 function loadImageList() {
-    return fetch("/images-list")
+    return fetch(`${BASE_URL}/images-list`)
         .then(res => res.json())
         .then(data => {
             images = data.files;
@@ -19,7 +20,7 @@ function loadImageList() {
 function showImage(index) {
     if (index < 0 || index >= images.length) return;
     currentIndex = index;
-    feed.src = "/images/" + images[currentIndex] + "?t=" + Date.now();
+    feed.src = `${BASE_URL}/images/${images[currentIndex]}?t=${Date.now()}`;
     imageCount.textContent = (currentIndex + 1) + " / " + images.length;
     backBtn.disabled = currentIndex === 0;
     forwardBtn.disabled = currentIndex === images.length - 1;
@@ -37,7 +38,7 @@ forwardBtn.addEventListener("click", () => {
 
 // Poll for changes every 2 seconds
 setInterval(() => {
-    fetch("/last-update")
+    fetch(`${BASE_URL}/last-update`)
         .then(res => res.json())
         .then(data => {
             if (knownLastUpdate === null) {
@@ -70,7 +71,7 @@ loadImageList().then(() => {
 document.getElementById("downloadBtn").addEventListener("click", () => {
     if (currentIndex === -1 || images.length === 0) return;
     const link = document.createElement("a");
-    link.href = "/download/" + images[currentIndex];
+    link.href = `${BASE_URL}/download/${images[currentIndex]}`;
     link.download = images[currentIndex];
     link.click();
 });
@@ -80,7 +81,7 @@ document.getElementById("downloadAllBtn").addEventListener("click", () => {
     images.forEach((filename, i) => {
         setTimeout(() => {
             const link = document.createElement("a");
-            link.href = "/download/" + filename;
+            link.href = `${BASE_URL}/download/${filename}`;
             link.download = filename;
             link.click();
         }, i * 500);

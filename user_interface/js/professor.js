@@ -4,11 +4,13 @@ const backBtn = document.getElementById("backBtn");
 const forwardBtn = document.getElementById("forwardBtn");
 const imageCount = document.getElementById("imageCount");
 
+const BASE_URL = "http://localhost:3001";
+
 let images = [];
 let currentIndex = -1;
 
 function loadImageList() {
-    return fetch("/images-list")
+    return fetch(`${BASE_URL}/images-list`)
         .then(res => res.json())
         .then(data => {
             images = data.files;
@@ -18,7 +20,7 @@ function loadImageList() {
 function showImage(index) {
     if (index < 0 || index >= images.length) return;
     currentIndex = index;
-    feed.src = "/images/" + images[currentIndex] + "?t=" + Date.now();
+    feed.src = `${BASE_URL}/images/${images[currentIndex]}?t=${Date.now()}`;
     imageCount.textContent = (currentIndex + 1) + " / " + images.length;
     backBtn.disabled = currentIndex === 0;
     forwardBtn.disabled = currentIndex === images.length - 1;
@@ -28,7 +30,7 @@ document.getElementById("captureBtn").addEventListener("click", () => {
     statusEl.textContent = "Capturing...";
     statusEl.className = "";
 
-    fetch("/capture", { method: "POST" })
+    fetch(`${BASE_URL}/capture`, { method: "POST" })
         .then(res => {
             if (!res.ok) {
                 statusEl.textContent = "Capture failed.";
@@ -63,7 +65,7 @@ document.getElementById("deleteBtn").addEventListener("click", () => {
     const filename = images[currentIndex];
     if (!confirm("Delete " + filename + "?")) return;
 
-    fetch("/images/" + filename, { method: "DELETE" })
+    fetch(`${BASE_URL}/images/${filename}`, { method: "DELETE" })
         .then(res => {
             if (res.ok) {
                 images.splice(currentIndex, 1);
@@ -82,7 +84,7 @@ document.getElementById("deleteBtn").addEventListener("click", () => {
 document.getElementById("downloadBtn").addEventListener("click", () => {
     if (currentIndex === -1 || images.length === 0) return;
     const link = document.createElement("a");
-    link.href = "/images/" + images[currentIndex];
+    link.href = `${BASE_URL}/images/${images[currentIndex]}`;
     link.download = images[currentIndex];
     link.click();
 });
@@ -92,7 +94,7 @@ document.getElementById("downloadAllBtn").addEventListener("click", () => {
     images.forEach((filename, i) => {
         setTimeout(() => {
             const link = document.createElement("a");
-            link.href = "/images/" + filename;
+            link.href = `${BASE_URL}/images/${filename}`;
             link.download = filename;
             link.click();
         }, i * 500);
