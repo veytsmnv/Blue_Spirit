@@ -107,8 +107,7 @@ app.delete("/images/:filename", (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
 });
-const fs = require("fs");       // already imported probably
-const path = require("path");   // already imported probably
+  // already imported probably
 
 const CALIBRATION_PATH = path.join(__dirname, "calibration.json");
 
