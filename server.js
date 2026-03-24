@@ -7,7 +7,10 @@ const multer = require("multer");
 const app = express();
 const PORT = 3000;
 
+app.use(express.json()); // ← must be before any routes
+
 let lastUpdate = Date.now();
+
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, path.join(__dirname, "capture")),
     filename: (req, file, cb) => {
@@ -91,6 +94,7 @@ app.get("/download/:filename", (req, res) => {
     const filepath = path.join(__dirname, "capture", req.params.filename);
     res.download(filepath);
 });
+
 // Delete route
 app.delete("/images/:filename", (req, res) => {
     const filepath = path.join(__dirname, "capture", req.params.filename);
@@ -104,28 +108,30 @@ app.delete("/images/:filename", (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-});
-  // already imported probably
-
+// Calibration routes
 const CALIBRATION_PATH = path.join(__dirname, "calibration.json");
 
 app.post("/calibration", (req, res) => {
-  const { corners, imageWidth, imageHeight, savedAt } = req.body;
-  if (!corners || corners.length !== 4) {
-    return res.status(400).json({ error: "Expected 4 corners" });
-  }
-  fs.writeFileSync(CALIBRATION_PATH, JSON.stringify({ corners, imageWidth, imageHeight, savedAt }, null, 2));
-  res.json({ ok: true });
+    const { corners, imageWidth, imageHeight, savedAt } = req.body;
+    if (!corners || corners.length !== 4) {
+        return res.status(400).json({ error: "Expected 4 corners" });
+    }
+    fs.writeFileSync(CALIBRATION_PATH, JSON.stringify({ corners, imageWidth, imageHeight, savedAt }, null, 2));
+    console.log("Calibration saved:", CALIBRATION_PATH);
+    res.json({ ok: true });
 });
 
 app.delete("/calibration", (req, res) => {
-  if (fs.existsSync(CALIBRATION_PATH)) fs.unlinkSync(CALIBRATION_PATH);
-  res.json({ ok: true });
+    if (fs.existsSync(CALIBRATION_PATH)) fs.unlinkSync(CALIBRATION_PATH);
+    res.json({ ok: true });
 });
 
 app.get("/calibration", (req, res) => {
-  if (!fs.existsSync(CALIBRATION_PATH)) return res.json(null);
-  res.json(JSON.parse(fs.readFileSync(CALIBRATION_PATH, "utf8")));
+    if (!fs.existsSync(CALIBRATION_PATH)) return res.json(null);
+    res.json(JSON.parse(fs.readFileSync(CALIBRATION_PATH, "utf8")));
+});
+
+// ← app.listen must be last
+app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
 });
