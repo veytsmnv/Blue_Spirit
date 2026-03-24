@@ -95,7 +95,7 @@ def process_image(input_path, output_path, calibration_path=None):
         print("Applied perspective warp.")
     else:
         print("No calibration found — skipping warp.")
-
+    
     # ── Step 1: Fix uneven lighting per channel ───────────────────────────────
     corrected = np.zeros_like(img, dtype=np.float32)
     for i in range(3):
@@ -149,4 +149,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     cal_path = sys.argv[3] if len(sys.argv) > 3 else None
-    process_image(Path(sys.argv[1]), Path(sys.argv[2]), calibration_path=cal_path)
+    #process_image(Path(sys.argv[1]), Path(sys.argv[2]), calibration_path=cal_path)
