@@ -4,7 +4,7 @@ const backBtn = document.getElementById("backBtn");
 const forwardBtn = document.getElementById("forwardBtn");
 const imageCount = document.getElementById("imageCount");
 
-const BASE_URL = "http://localhost:3001";
+const BASE_URL = "http://localhost:3000";
 
 let images = [];
 let currentIndex = -1;

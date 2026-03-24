@@ -39,7 +39,7 @@ const saveStatus         = document.getElementById("saveStatus");
 const savedInfoPanel     = document.getElementById("savedInfoPanel");
 const savedCoordsRow     = document.getElementById("savedCoordsRow");
 
-const BASE_URL = "http://localhost:3001";
+const BASE_URL = "http://localhost:3000";
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const LABELS = ["TL", "TR", "BR", "BL"];
