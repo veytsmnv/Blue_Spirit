@@ -124,6 +124,7 @@ header p {
     gap: 12px;
     justify-content: center;
     margin-bottom: 16px;
+}
 main {
   width: 100%;
   max-width: 900px;
