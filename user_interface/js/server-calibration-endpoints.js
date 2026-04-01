@@ -10,7 +10,7 @@
  *   - app = express()
  *   - app.use(express.json())
  */
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = `http://${window.location.hostname}:3000`;
 const CALIBRATION_PATH = path.join(__dirname, "calibration.json");
 
 // Save calibration sent from the browser
