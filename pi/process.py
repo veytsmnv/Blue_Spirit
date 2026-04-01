@@ -4,6 +4,13 @@ from pathlib import Path
 import sys
 import json
 
+# ─── Canonical calibration path ───────────────────────────────────────────────
+# Always stored at the project root (one level up from this script).
+# server.js writes/deletes it there. Do NOT search pi/ to avoid stale copies.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+CALIBRATION_PATH = REPO_ROOT / "calibration.json"
+
+
 # ─── Optional perspective warp ────────────────────────────────────────────────
 
 def perspective_warp(img, corners_norm):
@@ -50,35 +57,30 @@ def perspective_warp(img, corners_norm):
 
 def load_calibration(calibration_path=None):
     """
-    Load calibration from:
-      1. An explicit JSON file path (passed as argument), or
-      2. The default location: <repo-root>/calibration.json
+    Load calibration from the canonical path (project root/calibration.json).
+    An explicit path can be passed as an override (e.g. for testing).
 
     Returns a list of 4 normalised corner dicts, or None if not found.
     """
-    search_paths = []
-    if calibration_path:
-        search_paths.append(Path(calibration_path))
+    path = Path(calibration_path) if calibration_path else CALIBRATION_PATH
 
-    # Default: look next to this script and one level up
-    script_dir = Path(__file__).resolve().parent
-    search_paths += [
-        script_dir / "calibration.json",
-        script_dir.parent / "calibration.json",
-    ]
+    if not path.exists():
+        print("No calibration file found — skipping warp.")
+        return None
 
-    for p in search_paths:
-        if p.exists():
-            with open(p) as f:
-                data = json.load(f)
-            corners = data.get("corners")
-            if corners and len(corners) == 4:
-                print(f"Loaded calibration from: {p}")
-                return corners
-            else:
-                print(f"Warning: calibration file {p} is malformed, ignoring.")
-
-    return None
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        corners = data.get("corners")
+        if corners and len(corners) == 4:
+            print(f"Loaded calibration from: {path}")
+            return corners
+        else:
+            print(f"Warning: calibration file {path} is malformed, ignoring.")
+            return None
+    except Exception as e:
+        print(f"Error reading calibration file: {e}")
+        return None
 
 
 # ─── Enhancement pipeline ─────────────────────────────────────────────────────
@@ -94,16 +96,15 @@ def process_image(input_path, output_path, calibration_path=None):
         img = perspective_warp(img, corners)
         print("Applied perspective warp.")
     else:
-        print("No calibration found — skipping warp.")
+        print("No calibration — using full camera frame.")
 
     # ── Step 1: Very gentle lighting correction ───────────────────────────────
-    # Blend only 30% of the division result with the original
     corrected = np.zeros_like(img, dtype=np.float32)
     for i in range(3):
         channel = img[:, :, i].astype(np.float32)
         blur = cv2.GaussianBlur(channel, (51, 51), 0)
         divided = cv2.divide(channel, blur, scale=255)
-        corrected[:, :, i] = 0.3 * divided + 0.7 * channel  # subtle blend
+        corrected[:, :, i] = 0.3 * divided + 0.7 * channel
 
     corrected = np.clip(corrected, 0, 255).astype(np.uint8)
 
@@ -111,7 +112,7 @@ def process_image(input_path, output_path, calibration_path=None):
     lab = cv2.cvtColor(corrected, cv2.COLOR_BGR2LAB)
     l, a, b = cv2.split(lab)
 
-    clahe = cv2.createCLAHE(clipLimit=0.5, tileGridSize=(16, 16))  # was 1.5 / (8,8)
+    clahe = cv2.createCLAHE(clipLimit=0.5, tileGridSize=(16, 16))
     l = clahe.apply(l)
 
     lab = cv2.merge([l, a, b])
@@ -121,7 +122,6 @@ def process_image(input_path, output_path, calibration_path=None):
     # Removed — too aggressive for light edits
 
     # ── Step 4: Very subtle sharpening ───────────────────────────────────────
-    # Blend only 25% sharpened with 75% original
     kernel = np.array([
         [ 0, -1,  0],
         [-1,  5, -1],
@@ -133,6 +133,7 @@ def process_image(input_path, output_path, calibration_path=None):
     cv2.imwrite(str(output_path), result)
     print("Saved:", output_path)
 
+
 # ─── CLI ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -140,7 +141,8 @@ if __name__ == "__main__":
     Usage:
       python process.py input.jpg output.jpg [calibration.json]
 
-    If calibration.json is not provided, the script searches for it automatically.
+    If calibration.json is not provided, uses the project root calibration.json.
+    If that doesn't exist either, the full camera frame is used with no warp.
     """
     if len(sys.argv) < 3:
         print("Usage: python process.py input.jpg output.jpg [calibration.json]")
