@@ -132,7 +132,7 @@
       <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;align-items:center">
         <button class="nav-btn" id="resetCornersBtn">↺ Reset Corners</button>
         <button class="nav-btn" id="saveCalibrationBtn" disabled>✓ Save Calibration</button>
-        <button class="nav-btn" id="clearCalibrationBtn" style="background:#dc2626">✕ Clear Saved</button>
+        <button class="nav-btn" id="clearCalibrationBtn" style="background:#dc2626;color:#fff;border-color:#dc2626">✕ Clear Saved</button>
       </div>
 
       <p id="saveStatus" style="margin-top:10px;font-weight:600;color:#16a34a"></p>
@@ -148,7 +148,8 @@
   </div>
 
   <div class="nav-buttons">
-    <a href="session.html" class="nav-btn">← Back to Session</a>
+    <!-- Fix: was linking to session.html, now correctly links to professor.html -->
+    <a href="professor.html" class="nav-btn">← Back to Professor View</a>
   </div>
 
   <script src="js/calibrate.js" defer></script>

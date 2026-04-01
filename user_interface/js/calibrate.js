@@ -1,7 +1,7 @@
 /**
  * calibrate.js
  * Lets the professor take a test image, drag 4 corner handles to mark the
- * whiteboard boundary, then saves the calibration to localStorage.
+ * whiteboard boundary, then saves the calibration to the server + localStorage.
  *
  * Saved format (key: "wbcs_calibration"):
  * {
@@ -44,31 +44,27 @@ const BASE_URL = `http://${window.location.hostname}:3000`;
 // ─── State ────────────────────────────────────────────────────────────────────
 const LABELS = ["TL", "TR", "BR", "BL"];
 
-// corners stored as fractions [0,1] of the DISPLAYED image rect
-// (converted to natural fractions on save)
-let corners = [];          // [{x,y}, …]  display-space fractions
-let handles  = [];         // SVG <circle> elements
-let dragging = null;       // { index, offsetX, offsetY }
+let corners = [];
+let handles  = [];
+let dragging = null;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function displayRect() {
   return calibrateImg.getBoundingClientRect();
 }
 
-/** Convert a display-space corner fraction to SVG pixel coords */
 function toSvgPx(corner) {
   const r = displayRect();
   return { x: corner.x * r.width, y: corner.y * r.height };
 }
 
-/** Build default corners (slight inset so they're easy to see) */
 function defaultCorners() {
   const inset = 0.05;
   return [
-    { x: inset,       y: inset },        // TL
-    { x: 1 - inset,   y: inset },        // TR
-    { x: 1 - inset,   y: 1 - inset },   // BR
-    { x: inset,       y: 1 - inset }     // BL
+    { x: inset,       y: inset },
+    { x: 1 - inset,   y: inset },
+    { x: 1 - inset,   y: 1 - inset },
+    { x: inset,       y: 1 - inset }
   ];
 }
 
@@ -117,7 +113,6 @@ function refreshAll() {
 
 // ─── Build SVG handles ───────────────────────────────────────────────────────
 function buildHandles() {
-  // Clear any old handles / labels
   calibrateSvg.querySelectorAll(".corner-handle, .corner-label").forEach(el => el.remove());
   handles = [];
 
@@ -133,7 +128,6 @@ function buildHandles() {
     label.textContent = LABELS[i];
     calibrateSvg.appendChild(label);
 
-    // ── Drag logic ──
     circle.addEventListener("pointerdown", e => {
       e.preventDefault();
       circle.setPointerCapture(e.pointerId);
@@ -181,10 +175,9 @@ calCaptureBtn.addEventListener("click", () => {
     })
     .then(data => {
       calibrateStatus.textContent = "✓ Image captured.";
-      // Expect the server to return the latest image filename
       const filename = data.filename || data.file || data.name;
       if (!filename) throw new Error("No filename returned");
-      loadCalibrationImage("/images/" + filename + "?t=" + Date.now());
+      loadCalibrationImage(`${BASE_URL}/images/${filename}?t=${Date.now()}`);
     })
     .catch(err => {
       calibrateStatus.textContent = "⚠ " + err.message + " — try uploading instead.";
@@ -215,8 +208,6 @@ saveCalibrationBtn.addEventListener("click", () => {
   const w = img.naturalWidth;
   const h = img.naturalHeight;
 
-  // Convert display fractions → natural-image fractions
-  // (they're the same — we stored them as fractions already)
   const calibration = {
     imageWidth:  w,
     imageHeight: h,
@@ -226,34 +217,44 @@ saveCalibrationBtn.addEventListener("click", () => {
 
   localStorage.setItem("wbcs_calibration", JSON.stringify(calibration));
 
-  saveStatus.textContent = "✅ Calibration saved! All future captures will be cropped to this region.";
-  renderSavedInfo();
-
-  // Also POST to backend so the Pi knows about it
   fetch(`${BASE_URL}/calibration`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(calibration)
-  }).catch(() => {
-    // Non-fatal: backend may not have this endpoint yet
-    console.warn("Could not POST calibration to backend — will be applied client-side only.");
+  })
+  .then(() => {
+    saveStatus.textContent = "✅ Calibration saved! All future captures will be cropped to this region.";
+    renderSavedInfo();
+  })
+  .catch(() => {
+    saveStatus.textContent = "✅ Calibration saved locally (could not reach server).";
+    renderSavedInfo();
   });
 });
 
 // ─── Clear calibration ───────────────────────────────────────────────────────
 clearCalibrationBtn.addEventListener("click", () => {
   if (!confirm("Clear the saved calibration? Images will no longer be cropped.")) return;
-  localStorage.removeItem("wbcs_calibration");
-  saveStatus.textContent = "Calibration cleared.";
-  savedInfoPanel.style.display = "none";
 
-  fetch(`${BASE_URL}/calibration`, { method: "DELETE" }).catch(() => {});
+  // Clear localStorage
+  localStorage.removeItem("wbcs_calibration");
+
+  // Clear on server
+  fetch(`${BASE_URL}/calibration`, { method: "DELETE" })
+    .catch(() => console.warn("Could not reach server to clear calibration."));
+
+  // Fix: update UI — was missing this call so the panel stayed visible
+  saveStatus.textContent = "Calibration cleared.";
+  renderSavedInfo();
 });
 
-// ─── Show saved calibration on load ──────────────────────────────────────────
+// ─── Show saved calibration info panel ───────────────────────────────────────
 function renderSavedInfo() {
   const raw = localStorage.getItem("wbcs_calibration");
-  if (!raw) { savedInfoPanel.style.display = "none"; return; }
+  if (!raw) {
+    savedInfoPanel.style.display = "none";
+    return;
+  }
 
   const cal = JSON.parse(raw);
   savedInfoPanel.style.display = "";

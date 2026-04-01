@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Student View</title>
-  <!-- <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet"> -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -19,16 +19,22 @@
     <div class="image-label">Latest Capture</div>
   </div>
 
+  <div class="nav-buttons">
+    <button class="nav-btn" id="backBtn" disabled>← Back</button>
+    <span id="imageCount"></span>
+    <button class="nav-btn" id="forwardBtn" disabled>Forward →</button>
+  </div>
+
+  <div class="download-buttons">
+    <button class="nav-btn" id="downloadBtn">Download Current</button>
+    <button class="nav-btn" id="downloadAllBtn">Download All</button>
+  </div>
+
+  <div class="nav-buttons" style="margin-top: 32px;">
+    <a class="nav-btn" href="index.html">← Home</a>
+  </div>
+
   <script src="js/student.js" defer></script>
 
 </body>
-<div class="nav-buttons">
-  <button class="nav-btn" id="backBtn" disabled>← Back</button>
-  <span id="imageCount"></span>
-  <button class="nav-btn" id="forwardBtn" disabled>Forward →</button>
-</div>
-<div class="download-buttons">
-  <button class="nav-btn" id="downloadBtn">Download Current</button>
-  <button class="nav-btn" id="downloadAllBtn">Download All</button>
-</div>
 </html>
