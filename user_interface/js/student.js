@@ -1,31 +1,191 @@
-const feed = document.getElementById("cameraFeed");
-const backBtn = document.getElementById("backBtn");
-const forwardBtn = document.getElementById("forwardBtn");
-const imageCount = document.getElementById("imageCount");
 const BASE_URL = `http://${window.location.hostname}:3000`;
 
+// ── Image state ───────────────────────────────────────────────────────────────
 let images = [];
 let currentIndex = -1;
 let isManuallyBrowsing = false;
 let knownLastUpdate = null;
 
-function loadImageList() {
-    return fetch(`${BASE_URL}/images-list`)
-        .then(res => res.json())
-        .then(data => {
-            images = data.files;
-        });
+// ── Canvas setup ──────────────────────────────────────────────────────────────
+const imageCanvas      = document.getElementById("imageCanvas");
+const annotationCanvas = document.getElementById("annotationCanvas");
+const imgCtx           = imageCanvas.getContext("2d");
+const annCtx           = annotationCanvas.getContext("2d");
+
+// ── Toolbar elements ──────────────────────────────────────────────────────────
+const toolDraw        = document.getElementById("toolDraw");
+const toolEraser      = document.getElementById("toolEraser");
+const toolText        = document.getElementById("toolText");
+const colorPicker     = document.getElementById("colorPicker");
+const brushSize       = document.getElementById("brushSize");
+const undoBtn         = document.getElementById("undoBtn");
+const clearAnnotations= document.getElementById("clearAnnotations");
+const backBtn         = document.getElementById("backBtn");
+const forwardBtn      = document.getElementById("forwardBtn");
+const imageCount      = document.getElementById("imageCount");
+
+// ── Annotation state ──────────────────────────────────────────────────────────
+let activeTool  = "draw";   // "draw" | "eraser" | "text"
+let isDrawing   = false;
+let undoStack   = [];       // array of ImageData snapshots
+
+// ── Tool switching ────────────────────────────────────────────────────────────
+function setTool(tool) {
+    activeTool = tool;
+    [toolDraw, toolEraser, toolText].forEach(b => b.classList.remove("active"));
+    annotationCanvas.className = "";
+
+    if (tool === "draw")   { toolDraw.classList.add("active"); }
+    if (tool === "eraser") { toolEraser.classList.add("active"); annotationCanvas.classList.add("erasing"); }
+    if (tool === "text")   { toolText.classList.add("active");   annotationCanvas.classList.add("text"); }
 }
 
+toolDraw.addEventListener("click",   () => setTool("draw"));
+toolEraser.addEventListener("click", () => setTool("eraser"));
+toolText.addEventListener("click",   () => setTool("text"));
+
+// ── Undo / Clear ──────────────────────────────────────────────────────────────
+function saveUndo() {
+    undoStack.push(annCtx.getImageData(0, 0, annotationCanvas.width, annotationCanvas.height));
+    if (undoStack.length > 40) undoStack.shift(); // cap memory
+}
+
+undoBtn.addEventListener("click", () => {
+    if (undoStack.length === 0) return;
+    annCtx.putImageData(undoStack.pop(), 0, 0);
+});
+
+clearAnnotations.addEventListener("click", () => {
+    saveUndo();
+    annCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+});
+
+// ── Canvas coordinate helper (maps display px → canvas px) ───────────────────
+function getCanvasPos(e) {
+    const rect = annotationCanvas.getBoundingClientRect();
+    const scaleX = annotationCanvas.width  / rect.width;
+    const scaleY = annotationCanvas.height / rect.height;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top)  * scaleY
+    };
+}
+
+// ── Drawing ───────────────────────────────────────────────────────────────────
+annotationCanvas.addEventListener("pointerdown", e => {
+    if (activeTool === "text") {
+        handleTextTool(e);
+        return;
+    }
+    saveUndo();
+    isDrawing = true;
+    const pos = getCanvasPos(e);
+    annCtx.beginPath();
+    annCtx.moveTo(pos.x, pos.y);
+    // Draw a dot on click with no drag
+    annCtx.arc(pos.x, pos.y, getLineWidth() / 2, 0, Math.PI * 2);
+    annCtx.fill();
+    annCtx.beginPath();
+    annCtx.moveTo(pos.x, pos.y);
+});
+
+annotationCanvas.addEventListener("pointermove", e => {
+    if (!isDrawing) return;
+    const pos = getCanvasPos(e);
+    applyBrush(pos);
+});
+
+annotationCanvas.addEventListener("pointerup",    () => { isDrawing = false; });
+annotationCanvas.addEventListener("pointerleave", () => { isDrawing = false; });
+
+// Touch support
+annotationCanvas.addEventListener("touchstart", e => { e.preventDefault(); }, { passive: false });
+annotationCanvas.addEventListener("touchmove",  e => { e.preventDefault(); }, { passive: false });
+
+function getLineWidth() {
+    return parseInt(brushSize.value);
+}
+
+function applyBrush(pos) {
+    annCtx.lineWidth   = getLineWidth();
+    annCtx.lineCap     = "round";
+    annCtx.lineJoin    = "round";
+
+    if (activeTool === "eraser") {
+        annCtx.globalCompositeOperation = "destination-out";
+        annCtx.strokeStyle = "rgba(0,0,0,1)";
+        annCtx.lineWidth   = getLineWidth() * 3; // eraser is wider
+    } else {
+        annCtx.globalCompositeOperation = "source-over";
+        annCtx.strokeStyle = colorPicker.value;
+    }
+
+    annCtx.lineTo(pos.x, pos.y);
+    annCtx.stroke();
+    annCtx.beginPath();
+    annCtx.moveTo(pos.x, pos.y);
+}
+
+// ── Text tool ─────────────────────────────────────────────────────────────────
+function handleTextTool(e) {
+    const pos = getCanvasPos(e);
+    const text = prompt("Enter annotation text:");
+    if (!text) return;
+    saveUndo();
+    const size = Math.max(14, getLineWidth() * 5);
+    annCtx.globalCompositeOperation = "source-over";
+    annCtx.font      = `${size}px DM Sans, sans-serif`;
+    annCtx.fillStyle = colorPicker.value;
+    annCtx.fillText(text, pos.x, pos.y);
+}
+
+// ── Load image onto canvas ────────────────────────────────────────────────────
+function loadImageToCanvas(src) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+            // Size both canvases to the natural image dimensions
+            imageCanvas.width      = img.naturalWidth;
+            imageCanvas.height     = img.naturalHeight;
+            annotationCanvas.width  = img.naturalWidth;
+            annotationCanvas.height = img.naturalHeight;
+
+            imgCtx.drawImage(img, 0, 0);
+            resolve();
+        };
+        img.src = src;
+    });
+}
+
+// ── Show image + clear annotations ───────────────────────────────────────────
 function showImage(index) {
     if (index < 0 || index >= images.length) return;
     currentIndex = index;
-    feed.src = `${BASE_URL}/images/${images[currentIndex]}?t=${Date.now()}`;
+
+    const src = `${BASE_URL}/images/${images[currentIndex]}?t=${Date.now()}`;
+
+    // Clear annotation state for the new image
+    undoStack = [];
+    annCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+
+    loadImageToCanvas(src);
+
     imageCount.textContent = (currentIndex + 1) + " / " + images.length;
-    backBtn.disabled = currentIndex === 0;
+    backBtn.disabled    = currentIndex === 0;
     forwardBtn.disabled = currentIndex === images.length - 1;
 }
 
+// ── Image list ────────────────────────────────────────────────────────────────
+function loadImageList() {
+    return fetch(`${BASE_URL}/images-list`)
+        .then(res => res.json())
+        .then(data => { images = data.files; });
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
 backBtn.addEventListener("click", () => {
     isManuallyBrowsing = true;
     showImage(currentIndex - 1);
@@ -36,7 +196,7 @@ forwardBtn.addEventListener("click", () => {
     if (currentIndex === images.length - 1) isManuallyBrowsing = false;
 });
 
-// Poll for changes every 2 seconds
+// ── Polling for new images ────────────────────────────────────────────────────
 setInterval(() => {
     fetch(`${BASE_URL}/last-update`)
         .then(res => res.json())
@@ -51,37 +211,48 @@ setInterval(() => {
                     if (!isManuallyBrowsing) {
                         showImage(images.length - 1);
                     } else {
-                        // Update count and button states without jumping
                         imageCount.textContent = (currentIndex + 1) + " / " + images.length;
                         forwardBtn.disabled = currentIndex === images.length - 1;
-                        backBtn.disabled = currentIndex === 0;
+                        backBtn.disabled    = currentIndex === 0;
                     }
                 });
             }
         });
 }, 2000);
 
-// Load on startup
+// ── Startup ───────────────────────────────────────────────────────────────────
 loadImageList().then(() => {
     if (images.length > 0) {
         knownLastUpdate = Date.now();
         showImage(images.length - 1);
     }
 });
+
+// ── Download with annotations (composite both canvases) ───────────────────────
 document.getElementById("downloadBtn").addEventListener("click", () => {
     if (currentIndex === -1 || images.length === 0) return;
+
+    // Composite: draw image canvas then annotation canvas onto a temp canvas
+    const composite = document.createElement("canvas");
+    composite.width  = imageCanvas.width;
+    composite.height = imageCanvas.height;
+    const ctx = composite.getContext("2d");
+    ctx.drawImage(imageCanvas, 0, 0);
+    ctx.drawImage(annotationCanvas, 0, 0);
+
     const link = document.createElement("a");
-    link.href = "/download/" + images[currentIndex];
-    link.download = images[currentIndex];
+    link.href     = composite.toDataURL("image/jpeg", 0.95);
+    link.download = "annotated_" + images[currentIndex];
     link.click();
 });
 
+// ── Download all (no annotations, just the raw server images) ─────────────────
 document.getElementById("downloadAllBtn").addEventListener("click", () => {
     if (images.length === 0) return;
     images.forEach((filename, i) => {
         setTimeout(() => {
             const link = document.createElement("a");
-            link.href = "/download/" + filename;
+            link.href     = `${BASE_URL}/download/${filename}`;
             link.download = filename;
             link.click();
         }, i * 500);

@@ -5,6 +5,95 @@
   <title>Student View</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  <style>
+    #canvasWrapper {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 12px;
+    }
+
+    #imageCanvas {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    #annotationCanvas {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: calc(100% - 24px);
+      height: calc(100% - 24px);
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    #annotationCanvas.erasing { cursor: cell; }
+    #annotationCanvas.text    { cursor: text; }
+
+    .image-label {
+      margin-top: 10px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-align: right;
+    }
+
+    .annotation-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .tool-btn {
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
+      padding: 7px 16px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .tool-btn:hover { background: var(--accent); color: var(--bg); }
+    .tool-btn.active { background: var(--accent); color: var(--bg); }
+
+    .tool-separator {
+      width: 1px;
+      height: 28px;
+      background: var(--border);
+    }
+
+    #colorPicker {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border);
+      padding: 2px;
+      cursor: pointer;
+      background: none;
+    }
+
+    #brushSize {
+      width: 80px;
+      accent-color: var(--accent);
+    }
+
+    .tool-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+  </style>
 </head>
 <body>
 
@@ -14,9 +103,23 @@
     <div class="divider"></div>
   </header>
 
-  <div class="image-frame">
-    <img id="cameraFeed" src="" alt="Camera Feed">
+  <div id="canvasWrapper">
+    <canvas id="imageCanvas"></canvas>
+    <canvas id="annotationCanvas"></canvas>
     <div class="image-label">Latest Capture</div>
+  </div>
+
+  <div class="annotation-toolbar">
+    <button class="tool-btn active" id="toolDraw">✏ Draw</button>
+    <button class="tool-btn" id="toolEraser">◻ Eraser</button>
+    <button class="tool-btn" id="toolText">T Text</button>
+    <div class="tool-separator"></div>
+    <input type="color" id="colorPicker" value="#e11d48" title="Colour">
+    <span class="tool-label">Size</span>
+    <input type="range" id="brushSize" min="1" max="20" value="3">
+    <div class="tool-separator"></div>
+    <button class="tool-btn" id="undoBtn">↩ Undo</button>
+    <button class="tool-btn" id="clearAnnotations">✕ Clear</button>
   </div>
 
   <div class="nav-buttons">
@@ -26,8 +129,8 @@
   </div>
 
   <div class="download-buttons">
-    <button class="nav-btn" id="downloadBtn">Download Current</button>
-    <button class="nav-btn" id="downloadAllBtn">Download All</button>
+    <button class="nav-btn" id="downloadBtn">Download with Annotations</button>
+    <button class="nav-btn" id="downloadAllBtn">Download All (No Annotations)</button>
   </div>
 
   <div class="nav-buttons" style="margin-top: 32px;">
