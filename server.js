@@ -2,13 +2,15 @@ const express = require("express");
 const { exec } = require("child_process");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const multer = require("multer");
+const QRCode = require("qrcode");
 
 const app = express();
 const PORT = 3000;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
-app.use(express.json()); // Fix: was missing — needed for /calibration POST body
+app.use(express.json());
 app.use(express.static(path.join(__dirname, "user_interface")));
 app.use("/images", express.static(path.join(__dirname, "capture")));
 
@@ -17,6 +19,24 @@ const CAPTURE_DIR = path.join(__dirname, "capture");
 const CALIBRATION_PATH = path.join(__dirname, "calibration.json");
 
 let lastUpdate = Date.now();
+
+// ── Get local IP ──────────────────────────────────────────────────────────────
+function getLocalIP() {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === "IPv4" && !iface.internal) {
+                return iface.address;
+            }
+        }
+    }
+    return "127.0.0.1";
+}
+
+// Generate the student URL once at startup so it's consistent for the session
+const LOCAL_IP = getLocalIP();
+const STUDENT_URL = `http://${LOCAL_IP}:${PORT}/student.html`;
+console.log(`Student URL: ${STUDENT_URL}`);
 
 // ── Multer storage ────────────────────────────────────────────────────────────
 const storage = multer.diskStorage({
@@ -47,6 +67,27 @@ function getSortedPhotos(descending = false) {
 // ── Test route ────────────────────────────────────────────────────────────────
 app.get("/test", (req, res) => {
     res.send("Server is working");
+});
+
+// ── QR code image route — returns a PNG of the QR code ───────────────────────
+app.get("/qr.png", async (req, res) => {
+    try {
+        const buffer = await QRCode.toBuffer(STUDENT_URL, {
+            type: "png",
+            width: 400,
+            margin: 2,
+            color: { dark: "#000000", light: "#ffffff" }
+        });
+        res.setHeader("Content-Type", "image/png");
+        res.send(buffer);
+    } catch (err) {
+        res.status(500).send("QR generation failed");
+    }
+});
+
+// ── QR info route — returns the URL as JSON (for the QR page to display) ──────
+app.get("/qr-info", (req, res) => {
+    res.json({ url: STUDENT_URL });
 });
 
 // ── Last update route ─────────────────────────────────────────────────────────
@@ -88,7 +129,7 @@ app.post("/upload", upload.single("image"), (req, res) => {
 
 // ── Download route ────────────────────────────────────────────────────────────
 app.get("/download/:filename", (req, res) => {
-    const filename = path.basename(req.params.filename); // prevent path traversal
+    const filename = path.basename(req.params.filename);
     const filepath = path.join(CAPTURE_DIR, filename);
     if (!fs.existsSync(filepath)) return res.status(404).json({ error: "File not found" });
     res.download(filepath);
@@ -96,7 +137,7 @@ app.get("/download/:filename", (req, res) => {
 
 // ── Delete route ──────────────────────────────────────────────────────────────
 app.delete("/images/:filename", (req, res) => {
-    const filename = path.basename(req.params.filename); // prevent path traversal
+    const filename = path.basename(req.params.filename);
     const filepath = path.join(CAPTURE_DIR, filename);
     fs.unlink(filepath, (err) => {
         if (err) {
@@ -109,8 +150,6 @@ app.delete("/images/:filename", (req, res) => {
 });
 
 // ── Calibration routes ────────────────────────────────────────────────────────
-// Fix: these were defined in server-calibration-endpoints.js but never added here
-
 app.get("/calibration", (req, res) => {
     if (!fs.existsSync(CALIBRATION_PATH)) return res.json(null);
     try {
@@ -148,4 +187,5 @@ app.delete("/calibration", (req, res) => {
 // ── Start server ──────────────────────────────────────────────────────────────
 app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`Students can connect at: ${STUDENT_URL}`);
 });
