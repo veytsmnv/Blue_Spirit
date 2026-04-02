@@ -7,11 +7,22 @@ const multer = require("multer");
 const app = express();
 const PORT = 3000;
 
+// ── Middleware ────────────────────────────────────────────────────────────────
+app.use(express.json()); // Fix: was missing — needed for /calibration POST body
+app.use(express.static(path.join(__dirname, "user_interface")));
+app.use("/images", express.static(path.join(__dirname, "capture")));
+
+// ── Paths ─────────────────────────────────────────────────────────────────────
+const CAPTURE_DIR = path.join(__dirname, "capture");
+const CALIBRATION_PATH = path.join(__dirname, "calibration.json");
+
 let lastUpdate = Date.now();
+
+// ── Multer storage ────────────────────────────────────────────────────────────
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, path.join(__dirname, "capture")),
+    destination: (req, file, cb) => cb(null, CAPTURE_DIR),
     filename: (req, file, cb) => {
-        const existing = fs.readdirSync(path.join(__dirname, "capture"))
+        const existing = fs.readdirSync(CAPTURE_DIR)
             .filter(f => f.startsWith("photo_") && f.endsWith(".jpg"))
             .map(f => parseInt(f.replace("photo_", "").replace(".jpg", "")))
             .filter(n => !isNaN(n));
@@ -22,56 +33,45 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Serve the frontend files
-app.use(express.static(path.join(__dirname, "user_interface")));
+// ── Helper: get sorted photo list ─────────────────────────────────────────────
+function getSortedPhotos(descending = false) {
+    return fs.readdirSync(CAPTURE_DIR)
+        .filter(f => f.startsWith("photo_") && f.endsWith(".jpg"))
+        .sort((a, b) => {
+            const numA = parseInt(a.replace("photo_", "").replace(".jpg", ""));
+            const numB = parseInt(b.replace("photo_", "").replace(".jpg", ""));
+            return descending ? numB - numA : numA - numB;
+        });
+}
 
-// Serve captured images
-app.use("/images", express.static(path.join(__dirname, "capture")));
-
-// Test route
+// ── Test route ────────────────────────────────────────────────────────────────
 app.get("/test", (req, res) => {
     res.send("Server is working");
 });
 
-// Last update route
+// ── Last update route ─────────────────────────────────────────────────────────
 app.get("/last-update", (req, res) => {
     res.json({ lastUpdate });
 });
 
-// Image list route
+// ── Image list route ──────────────────────────────────────────────────────────
 app.get("/images-list", (req, res) => {
-    const captureDir = path.join(__dirname, "capture");
-    const files = fs.readdirSync(captureDir)
-        .filter(f => f.startsWith("photo_") && f.endsWith(".jpg"))
-        .sort((a, b) => {
-            const numA = parseInt(a.replace("photo_", "").replace(".jpg", ""));
-            const numB = parseInt(b.replace("photo_", "").replace(".jpg", ""));
-            return numA - numB;
-        });
-    res.json({ files });
+    res.json({ files: getSortedPhotos() });
 });
 
-// Latest image route
+// ── Latest image route ────────────────────────────────────────────────────────
 app.get("/latest", (req, res) => {
-    const captureDir = path.join(__dirname, "capture");
-    const files = fs.readdirSync(captureDir)
-        .filter(f => f.startsWith("photo_") && f.endsWith(".jpg"))
-        .sort((a, b) => {
-            const numA = parseInt(a.replace("photo_", "").replace(".jpg", ""));
-            const numB = parseInt(b.replace("photo_", "").replace(".jpg", ""));
-            return numB - numA;
-        });
-    if (files.length === 0) return res.json({ filename: null });
-    res.json({ filename: files[0] });
+    const files = getSortedPhotos(true);
+    res.json({ filename: files.length > 0 ? files[0] : null });
 });
 
-// Capture route
+// ── Capture route ─────────────────────────────────────────────────────────────
 app.post("/capture", (req, res) => {
-    exec("python pi/capture.py", { cwd: __dirname }, (err, stdout, stderr) => {
+    exec("python3 pi/capture.py", { cwd: __dirname }, (err, stdout, stderr) => {
         if (err) {
             console.error("Capture error:", err);
             console.error(stderr);
-            return res.status(500).send("Capture failed");
+            return res.status(500).json({ error: "Capture failed", detail: stderr });
         }
         lastUpdate = Date.now();
         const filename = stdout.trim().split("/").pop();
@@ -79,31 +79,73 @@ app.post("/capture", (req, res) => {
     });
 });
 
-// Upload route
+// ── Upload route ──────────────────────────────────────────────────────────────
 app.post("/upload", upload.single("image"), (req, res) => {
-    if (!req.file) return res.status(400).send("No file uploaded");
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
     lastUpdate = Date.now();
     res.json({ filename: req.file.filename });
 });
 
-// Download route
+// ── Download route ────────────────────────────────────────────────────────────
 app.get("/download/:filename", (req, res) => {
-    const filepath = path.join(__dirname, "capture", req.params.filename);
+    const filename = path.basename(req.params.filename); // prevent path traversal
+    const filepath = path.join(CAPTURE_DIR, filename);
+    if (!fs.existsSync(filepath)) return res.status(404).json({ error: "File not found" });
     res.download(filepath);
 });
-// Delete route
+
+// ── Delete route ──────────────────────────────────────────────────────────────
 app.delete("/images/:filename", (req, res) => {
-    const filepath = path.join(__dirname, "capture", req.params.filename);
+    const filename = path.basename(req.params.filename); // prevent path traversal
+    const filepath = path.join(CAPTURE_DIR, filename);
     fs.unlink(filepath, (err) => {
         if (err) {
             console.error("Delete error:", err);
-            return res.status(500).send("Delete failed");
+            return res.status(500).json({ error: "Delete failed" });
         }
         lastUpdate = Date.now();
-        res.send("Deleted");
+        res.json({ ok: true });
     });
 });
 
-app.listen(PORT, () => {
+// ── Calibration routes ────────────────────────────────────────────────────────
+// Fix: these were defined in server-calibration-endpoints.js but never added here
+
+app.get("/calibration", (req, res) => {
+    if (!fs.existsSync(CALIBRATION_PATH)) return res.json(null);
+    try {
+        const data = JSON.parse(fs.readFileSync(CALIBRATION_PATH, "utf8"));
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: "Failed to read calibration file" });
+    }
+});
+
+app.post("/calibration", (req, res) => {
+    const { corners, imageWidth, imageHeight, savedAt } = req.body;
+    if (!corners || corners.length !== 4) {
+        return res.status(400).json({ error: "Expected 4 corners" });
+    }
+    try {
+        fs.writeFileSync(CALIBRATION_PATH, JSON.stringify({ corners, imageWidth, imageHeight, savedAt }, null, 2));
+        console.log("Calibration saved:", CALIBRATION_PATH);
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: "Failed to save calibration file" });
+    }
+});
+
+app.delete("/calibration", (req, res) => {
+    try {
+        if (fs.existsSync(CALIBRATION_PATH)) fs.unlinkSync(CALIBRATION_PATH);
+        console.log("Calibration deleted.");
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: "Failed to delete calibration file" });
+    }
+});
+
+// ── Start server ──────────────────────────────────────────────────────────────
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running at http://localhost:${PORT}`);
 });

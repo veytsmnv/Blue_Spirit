@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Professor's View</title>
-  <!-- <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet"> -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -13,12 +13,15 @@
     <p>Live Camera Feed</p>
     <div class="divider"></div>
   </header>
-<div class="button-row">
+
+  <div class="button-row">
     <button class="nav-btn" id="captureBtn">Take Photo</button>
     <button class="nav-btn" id="uploadBtn">Upload Image</button>
     <input type="file" id="uploadInput" accept="image/*" style="display:none">
     <button class="nav-btn" id="deleteBtn">Delete Current</button>
-</div>
+    <a class="nav-btn" href="calibrate.html">⚙ Calibrate</a>
+  </div>
+
   <p id="status"></p>
 
   <div class="image-frame">
@@ -26,16 +29,22 @@
     <div class="image-label">Latest Capture</div>
   </div>
 
+  <div class="nav-buttons">
+    <button class="nav-btn" id="backBtn" disabled>← Back</button>
+    <span id="imageCount"></span>
+    <button class="nav-btn" id="forwardBtn" disabled>Forward →</button>
+  </div>
+
+  <div class="download-buttons">
+    <button class="nav-btn" id="downloadBtn">Download Current</button>
+    <button class="nav-btn" id="downloadAllBtn">Download All</button>
+  </div>
+
+  <div class="nav-buttons" style="margin-top: 32px;">
+    <a class="nav-btn" href="index.html">← Home</a>
+  </div>
+
   <script src="js/professor.js" defer></script>
 
 </body>
-<div class="nav-buttons">
-  <button class="nav-btn" id="backBtn" disabled>← Back</button>
-  <span id="imageCount"></span>
-  <button class="nav-btn" id="forwardBtn" disabled>Forward →</button>
-</div>
-<div class="download-buttons">
-  <button class="nav-btn" id="downloadBtn">Download Current</button>
-  <button class="nav-btn" id="downloadAllBtn">Download All</button>
-</div>
 </html>

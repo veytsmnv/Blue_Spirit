@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Whiteboard Calibration</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    #calibrateContainer {
+      position: relative;
+      display: inline-block;
+      cursor: crosshair;
+      user-select: none;
+    }
+    #calibrateImg {
+      display: block;
+      max-width: 100%;
+      max-height: 70vh;
+      border: 2px solid var(--border, #ccc);
+      border-radius: 4px;
+    }
+    #calibrateSvg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+    .corner-handle {
+      pointer-events: all;
+      cursor: grab;
+      fill: #f97316;
+      stroke: #fff;
+      stroke-width: 2;
+      r: 10;
+      transition: r 0.1s;
+    }
+    .corner-handle:active { cursor: grabbing; r: 13; }
+    #quadPolygon {
+      fill: rgba(249, 115, 22, 0.12);
+      stroke: #f97316;
+      stroke-width: 2;
+      stroke-dasharray: 6 4;
+      pointer-events: none;
+    }
+    .corner-label {
+      fill: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+    #calibratePanel {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+    .step-badge {
+      display: inline-block;
+      background: #f97316;
+      color: #fff;
+      border-radius: 999px;
+      padding: 2px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    #calibrateStatus { min-height: 1.4em; }
+    .coords-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+      font-size: 13px;
+      color: #888;
+    }
+    .coord-chip {
+      background: #f3f4f6;
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-family: monospace;
+    }
+    #saveCalibrationBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Whiteboard <span>Calibration</span></h1>
+    <p>Set the four corners of your whiteboard</p>
+    <div class="divider"></div>
+  </header>
+
+  <div id="calibratePanel" class="container" style="padding:24px">
+
+    <!-- Step 1 -->
+    <section class="panel" style="margin-bottom:20px">
+      <div class="step-badge">Step 1</div>
+      <h2 style="margin-top:4px">Take a calibration image</h2>
+      <p style="color:#666;margin-bottom:16px">
+        Point the camera at your whiteboard so the whole board is visible, then capture.
+        You can also upload an existing photo.
+      </p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <button class="nav-btn" id="calCaptureBtn">📷 Capture Test Image</button>
+        <button class="nav-btn" id="calUploadBtn">⬆ Upload Image</button>
+        <input type="file" id="calUploadInput" accept="image/*" style="display:none">
+      </div>
+      <p id="calibrateStatus" style="margin-top:10px;color:#f97316;font-weight:600"></p>
+    </section>
+
+    <!-- Step 2 — hidden until image loaded -->
+    <section class="panel" id="step2Panel" style="display:none">
+      <div class="step-badge">Step 2</div>
+      <h2 style="margin-top:4px">Drag the corners to match your whiteboard</h2>
+      <p style="color:#666;margin-bottom:16px">
+        Four orange handles mark the whiteboard corners.
+        Drag each one to exactly match the corner of your physical whiteboard.
+        Order: <strong>Top-Left → Top-Right → Bottom-Right → Bottom-Left</strong>.
+      </p>
+
+      <div id="calibrateContainer">
+        <img id="calibrateImg" src="" alt="Calibration image" draggable="false">
+        <svg id="calibrateSvg">
+          <polygon id="quadPolygon" points=""/>
+          <!-- corners injected by JS -->
+        </svg>
+      </div>
+
+      <div class="coords-row" id="coordsRow"></div>
+
+      <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;align-items:center">
+        <button class="nav-btn" id="resetCornersBtn">↺ Reset Corners</button>
+        <button class="nav-btn" id="saveCalibrationBtn" disabled>✓ Save Calibration</button>
+        <button class="nav-btn" id="clearCalibrationBtn" style="background:#dc2626;color:#fff;border-color:#dc2626">✕ Clear Saved</button>
+      </div>
+
+      <p id="saveStatus" style="margin-top:10px;font-weight:600;color:#16a34a"></p>
+    </section>
+
+    <!-- Current calibration info -->
+    <section class="panel" id="savedInfoPanel" style="margin-top:20px;display:none">
+      <h3>✅ Active Calibration</h3>
+      <p style="color:#555;font-size:14px">These corners will be used for every new capture.</p>
+      <div class="coords-row" id="savedCoordsRow"></div>
+    </section>
+
+  </div>
+
+  <div class="nav-buttons">
+    <!-- Fix: was linking to session.html, now correctly links to professor.html -->
+    <a href="professor.html" class="nav-btn">← Back to Professor View</a>
+  </div>
+
+  <script src="js/calibrate.js" defer></script>
+</body>
+</html>
