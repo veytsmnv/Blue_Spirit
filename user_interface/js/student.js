@@ -13,28 +13,40 @@ const imgCtx           = imageCanvas.getContext("2d");
 const annCtx           = annotationCanvas.getContext("2d");
 
 // ── Toolbar elements ──────────────────────────────────────────────────────────
-const toolDraw        = document.getElementById("toolDraw");
-const toolEraser      = document.getElementById("toolEraser");
-const toolText        = document.getElementById("toolText");
-const colorPicker     = document.getElementById("colorPicker");
-const brushSize       = document.getElementById("brushSize");
-const undoBtn         = document.getElementById("undoBtn");
-const clearAnnotations= document.getElementById("clearAnnotations");
-const backBtn         = document.getElementById("backBtn");
-const forwardBtn      = document.getElementById("forwardBtn");
-const imageCount      = document.getElementById("imageCount");
+const toolDraw         = document.getElementById("toolDraw");
+const toolEraser       = document.getElementById("toolEraser");
+const toolText         = document.getElementById("toolText");
+const colorPicker      = document.getElementById("colorPicker");
+const brushSize        = document.getElementById("brushSize");
+const undoBtn          = document.getElementById("undoBtn");
+const clearAnnotations = document.getElementById("clearAnnotations");
+const backBtn          = document.getElementById("backBtn");
+const forwardBtn       = document.getElementById("forwardBtn");
+const imageCount       = document.getElementById("imageCount");
+const sessionHeader    = document.getElementById("sessionHeader");
 
 // ── Annotation state ──────────────────────────────────────────────────────────
-let activeTool  = "draw";   // "draw" | "eraser" | "text"
-let isDrawing   = false;
-let undoStack   = [];       // array of ImageData snapshots
+let activeTool = "draw";
+let isDrawing  = false;
+let undoStack  = [];
+
+// ── Session name display ──────────────────────────────────────────────────────
+fetch(`${BASE_URL}/session-info`)
+    .then(res => res.json())
+    .then(session => {
+        if (session && session.name) {
+            sessionHeader.textContent = session.name;
+        } else {
+            sessionHeader.textContent = "Live Whiteboard";
+        }
+    })
+    .catch(() => { sessionHeader.textContent = "Live Whiteboard"; });
 
 // ── Tool switching ────────────────────────────────────────────────────────────
 function setTool(tool) {
     activeTool = tool;
     [toolDraw, toolEraser, toolText].forEach(b => b.classList.remove("active"));
     annotationCanvas.className = "";
-
     if (tool === "draw")   { toolDraw.classList.add("active"); }
     if (tool === "eraser") { toolEraser.classList.add("active"); annotationCanvas.classList.add("erasing"); }
     if (tool === "text")   { toolText.classList.add("active");   annotationCanvas.classList.add("text"); }
@@ -47,7 +59,7 @@ toolText.addEventListener("click",   () => setTool("text"));
 // ── Undo / Clear ──────────────────────────────────────────────────────────────
 function saveUndo() {
     undoStack.push(annCtx.getImageData(0, 0, annotationCanvas.width, annotationCanvas.height));
-    if (undoStack.length > 40) undoStack.shift(); // cap memory
+    if (undoStack.length > 40) undoStack.shift();
 }
 
 undoBtn.addEventListener("click", () => {
@@ -60,9 +72,9 @@ clearAnnotations.addEventListener("click", () => {
     annCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
 });
 
-// ── Canvas coordinate helper (maps display px → canvas px) ───────────────────
+// ── Canvas coordinate helper ──────────────────────────────────────────────────
 function getCanvasPos(e) {
-    const rect = annotationCanvas.getBoundingClientRect();
+    const rect   = annotationCanvas.getBoundingClientRect();
     const scaleX = annotationCanvas.width  / rect.width;
     const scaleY = annotationCanvas.height / rect.height;
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -75,16 +87,11 @@ function getCanvasPos(e) {
 
 // ── Drawing ───────────────────────────────────────────────────────────────────
 annotationCanvas.addEventListener("pointerdown", e => {
-    if (activeTool === "text") {
-        handleTextTool(e);
-        return;
-    }
+    if (activeTool === "text") { handleTextTool(e); return; }
     saveUndo();
     isDrawing = true;
     const pos = getCanvasPos(e);
     annCtx.beginPath();
-    annCtx.moveTo(pos.x, pos.y);
-    // Draw a dot on click with no drag
     annCtx.arc(pos.x, pos.y, getLineWidth() / 2, 0, Math.PI * 2);
     annCtx.fill();
     annCtx.beginPath();
@@ -93,33 +100,29 @@ annotationCanvas.addEventListener("pointerdown", e => {
 
 annotationCanvas.addEventListener("pointermove", e => {
     if (!isDrawing) return;
-    const pos = getCanvasPos(e);
-    applyBrush(pos);
+    applyBrush(getCanvasPos(e));
 });
 
 annotationCanvas.addEventListener("pointerup",    () => { isDrawing = false; });
 annotationCanvas.addEventListener("pointerleave", () => { isDrawing = false; });
-
-// Touch support
 annotationCanvas.addEventListener("touchstart", e => { e.preventDefault(); }, { passive: false });
 annotationCanvas.addEventListener("touchmove",  e => { e.preventDefault(); }, { passive: false });
 
-function getLineWidth() {
-    return parseInt(brushSize.value);
-}
+function getLineWidth() { return parseInt(brushSize.value); }
 
 function applyBrush(pos) {
-    annCtx.lineWidth   = getLineWidth();
-    annCtx.lineCap     = "round";
-    annCtx.lineJoin    = "round";
+    annCtx.lineWidth  = getLineWidth();
+    annCtx.lineCap    = "round";
+    annCtx.lineJoin   = "round";
 
     if (activeTool === "eraser") {
         annCtx.globalCompositeOperation = "destination-out";
         annCtx.strokeStyle = "rgba(0,0,0,1)";
-        annCtx.lineWidth   = getLineWidth() * 3; // eraser is wider
+        annCtx.lineWidth   = getLineWidth() * 3;
     } else {
         annCtx.globalCompositeOperation = "source-over";
         annCtx.strokeStyle = colorPicker.value;
+        annCtx.fillStyle   = colorPicker.value;
     }
 
     annCtx.lineTo(pos.x, pos.y);
@@ -128,9 +131,8 @@ function applyBrush(pos) {
     annCtx.moveTo(pos.x, pos.y);
 }
 
-// ── Text tool ─────────────────────────────────────────────────────────────────
 function handleTextTool(e) {
-    const pos = getCanvasPos(e);
+    const pos  = getCanvasPos(e);
     const text = prompt("Enter annotation text:");
     if (!text) return;
     saveUndo();
@@ -147,12 +149,10 @@ function loadImageToCanvas(src) {
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
-            // Size both canvases to the natural image dimensions
-            imageCanvas.width      = img.naturalWidth;
-            imageCanvas.height     = img.naturalHeight;
+            imageCanvas.width       = img.naturalWidth;
+            imageCanvas.height      = img.naturalHeight;
             annotationCanvas.width  = img.naturalWidth;
             annotationCanvas.height = img.naturalHeight;
-
             imgCtx.drawImage(img, 0, 0);
             resolve();
         };
@@ -164,15 +164,9 @@ function loadImageToCanvas(src) {
 function showImage(index) {
     if (index < 0 || index >= images.length) return;
     currentIndex = index;
-
-    const src = `${BASE_URL}/images/${images[currentIndex]}?t=${Date.now()}`;
-
-    // Clear annotation state for the new image
     undoStack = [];
     annCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
-
-    loadImageToCanvas(src);
-
+    loadImageToCanvas(`${BASE_URL}/images/${images[currentIndex]}?t=${Date.now()}`);
     imageCount.textContent = (currentIndex + 1) + " / " + images.length;
     backBtn.disabled    = currentIndex === 0;
     forwardBtn.disabled = currentIndex === images.length - 1;
@@ -196,15 +190,12 @@ forwardBtn.addEventListener("click", () => {
     if (currentIndex === images.length - 1) isManuallyBrowsing = false;
 });
 
-// ── Polling for new images ────────────────────────────────────────────────────
+// ── Polling ───────────────────────────────────────────────────────────────────
 setInterval(() => {
     fetch(`${BASE_URL}/last-update`)
         .then(res => res.json())
         .then(data => {
-            if (knownLastUpdate === null) {
-                knownLastUpdate = data.lastUpdate;
-                return;
-            }
+            if (knownLastUpdate === null) { knownLastUpdate = data.lastUpdate; return; }
             if (data.lastUpdate !== knownLastUpdate) {
                 knownLastUpdate = data.lastUpdate;
                 loadImageList().then(() => {
@@ -228,32 +219,29 @@ loadImageList().then(() => {
     }
 });
 
-// ── Download with annotations (composite both canvases) ───────────────────────
+// ── Download with annotations ─────────────────────────────────────────────────
 document.getElementById("downloadBtn").addEventListener("click", () => {
     if (currentIndex === -1 || images.length === 0) return;
-
-    // Composite: draw image canvas then annotation canvas onto a temp canvas
     const composite = document.createElement("canvas");
     composite.width  = imageCanvas.width;
     composite.height = imageCanvas.height;
     const ctx = composite.getContext("2d");
     ctx.drawImage(imageCanvas, 0, 0);
     ctx.drawImage(annotationCanvas, 0, 0);
-
     const link = document.createElement("a");
     link.href     = composite.toDataURL("image/jpeg", 0.95);
-    link.download = "annotated_" + images[currentIndex];
+    link.download = "annotated_" + images[currentIndex].split("/").pop();
     link.click();
 });
 
-// ── Download all (no annotations, just the raw server images) ─────────────────
+// ── Download all ──────────────────────────────────────────────────────────────
 document.getElementById("downloadAllBtn").addEventListener("click", () => {
     if (images.length === 0) return;
     images.forEach((filename, i) => {
         setTimeout(() => {
             const link = document.createElement("a");
             link.href     = `${BASE_URL}/download/${filename}`;
-            link.download = filename;
+            link.download = filename.split("/").pop();
             link.click();
         }, i * 500);
     });
