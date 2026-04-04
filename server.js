@@ -46,6 +46,11 @@ function activeCaptureDir() {
     return session ? path.join(CAPTURE_DIR, session.folder) : CAPTURE_DIR;
 }
 
+function prefixFile(filename) {
+    const session = loadSession();
+    return session ? `${session.folder}/${filename}` : filename;
+}
+
 // ── Get local IP ──────────────────────────────────────────────────────────────
 function getLocalIP() {
     const interfaces = os.networkInterfaces();
@@ -91,12 +96,6 @@ function getSortedPhotos(dir, descending = false) {
             const numB = parseInt(b.replace("photo_", "").replace(".jpg", ""));
             return descending ? numB - numA : numA - numB;
         });
-}
-
-// ── Prefix filename with session folder if active ─────────────────────────────
-function prefixFile(filename) {
-    const session = loadSession();
-    return session ? `${session.folder}/${filename}` : filename;
 }
 
 // ── Test ──────────────────────────────────────────────────────────────────────
@@ -146,7 +145,6 @@ app.delete("/session", (req, res) => {
     }
 });
 
-// ── Session info (for student view) ──────────────────────────────────────────
 app.get("/session-info", (req, res) => {
     const session = loadSession();
     res.json(session ? { name: session.name, startedAt: session.startedAt } : null);
@@ -207,23 +205,34 @@ app.post("/upload", upload.single("image"), (req, res) => {
     res.json({ filename: prefixFile(req.file.filename) });
 });
 
-// ── Download (supports subfolder paths) ──────────────────────────────────────
-app.get("/download/*", (req, res) => {
-    const relative = req.params[0];
-    const filepath = path.join(CAPTURE_DIR, relative);
+// ── Download — supports "folder/filename" paths ───────────────────────────────
+// Fix: Express 5 requires named wildcard params, not bare *
+app.get("/download/:folder/:filename", (req, res) => {
+    const filepath = path.join(CAPTURE_DIR, req.params.folder, req.params.filename);
     if (!fs.existsSync(filepath)) return res.status(404).json({ error: "File not found" });
     res.download(filepath);
 });
 
-// ── Delete (supports subfolder paths) ────────────────────────────────────────
-app.delete("/images/*", (req, res) => {
-    const relative = req.params[0];
-    const filepath = path.join(CAPTURE_DIR, relative);
+app.get("/download/:filename", (req, res) => {
+    const filepath = path.join(CAPTURE_DIR, path.basename(req.params.filename));
+    if (!fs.existsSync(filepath)) return res.status(404).json({ error: "File not found" });
+    res.download(filepath);
+});
+
+// ── Delete — supports "folder/filename" paths ─────────────────────────────────
+app.delete("/images/:folder/:filename", (req, res) => {
+    const filepath = path.join(CAPTURE_DIR, req.params.folder, req.params.filename);
     fs.unlink(filepath, (err) => {
-        if (err) {
-            console.error("Delete error:", err);
-            return res.status(500).json({ error: "Delete failed" });
-        }
+        if (err) return res.status(500).json({ error: "Delete failed" });
+        lastUpdate = Date.now();
+        res.json({ ok: true });
+    });
+});
+
+app.delete("/images/:filename", (req, res) => {
+    const filepath = path.join(CAPTURE_DIR, path.basename(req.params.filename));
+    fs.unlink(filepath, (err) => {
+        if (err) return res.status(500).json({ error: "Delete failed" });
         lastUpdate = Date.now();
         res.json({ ok: true });
     });
