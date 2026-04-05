@@ -137,9 +137,8 @@ function buildHandles() {
     circle.addEventListener("pointermove", e => {
       if (dragging === null || dragging.index !== i) return;
       const r = displayRect();
-      const svgRect = calibrateSvg.getBoundingClientRect();
-      const rawX = (e.clientX - svgRect.left) / r.width;
-      const rawY = (e.clientY - svgRect.top)  / r.height;
+      const rawX = (e.clientX - r.left) / r.width;
+      const rawY = (e.clientY - r.top)  / r.height;
       corners[i] = {
         x: Math.max(0, Math.min(1, rawX)),
         y: Math.max(0, Math.min(1, rawY))
@@ -236,14 +235,11 @@ saveCalibrationBtn.addEventListener("click", () => {
 clearCalibrationBtn.addEventListener("click", () => {
   if (!confirm("Clear the saved calibration? Images will no longer be cropped.")) return;
 
-  // Clear localStorage
   localStorage.removeItem("wbcs_calibration");
 
-  // Clear on server
   fetch(`${BASE_URL}/calibration`, { method: "DELETE" })
     .catch(() => console.warn("Could not reach server to clear calibration."));
 
-  // Fix: update UI — was missing this call so the panel stayed visible
   saveStatus.textContent = "Calibration cleared.";
   renderSavedInfo();
 });
@@ -272,7 +268,7 @@ window.addEventListener("resize", () => {
   if (handles.length) refreshAll();
 });
 
-// ─── Expose calibration getter for other scripts ──────────────────────────────
+// ─── Global calibration accessor (available in browser console and inline scripts) ─
 window.getCalibration = function() {
   const raw = localStorage.getItem("wbcs_calibration");
   return raw ? JSON.parse(raw) : null;
