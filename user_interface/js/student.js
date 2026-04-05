@@ -1,44 +1,85 @@
 const BASE_URL = `http://${window.location.hostname}:3000`;
 
 // ── Image state ───────────────────────────────────────────────────────────────
-let images = [];
-let currentIndex = -1;
+let images         = [];
+let currentIndex   = -1;
 let isManuallyBrowsing = false;
-let knownLastUpdate = null;
+let knownLastUpdate    = null;
 
 // ── Canvas setup ──────────────────────────────────────────────────────────────
 const imageCanvas      = document.getElementById("imageCanvas");
 const annotationCanvas = document.getElementById("annotationCanvas");
 const imgCtx           = imageCanvas.getContext("2d");
 const annCtx           = annotationCanvas.getContext("2d");
+const canvasWrapper    = document.getElementById("canvasWrapper");
 
-// ── Toolbar elements ──────────────────────────────────────────────────────────
-const toolDraw         = document.getElementById("toolDraw");
-const toolEraser       = document.getElementById("toolEraser");
-const toolText         = document.getElementById("toolText");
-const colorPicker      = document.getElementById("colorPicker");
-const brushSize        = document.getElementById("brushSize");
-const undoBtn          = document.getElementById("undoBtn");
-const clearAnnotations = document.getElementById("clearAnnotations");
-const backBtn          = document.getElementById("backBtn");
-const forwardBtn       = document.getElementById("forwardBtn");
-const imageCount       = document.getElementById("imageCount");
-const sessionHeader    = document.getElementById("sessionHeader");
+// ── UI elements ───────────────────────────────────────────────────────────────
+const toolDraw            = document.getElementById("toolDraw");
+const toolEraser          = document.getElementById("toolEraser");
+const toolText            = document.getElementById("toolText");
+const colorPicker         = document.getElementById("colorPicker");
+const brushSize           = document.getElementById("brushSize");
+const undoBtn             = document.getElementById("undoBtn");
+const clearAnnotations    = document.getElementById("clearAnnotations");
+const saveAnnotationsBtn  = document.getElementById("saveAnnotationsBtn");
+const annotationSavedBadge= document.getElementById("annotationSavedBadge");
+const backBtn             = document.getElementById("backBtn");
+const forwardBtn          = document.getElementById("forwardBtn");
+const imageCount          = document.getElementById("imageCount");
+const sessionHeader       = document.getElementById("sessionHeader");
+const flagBtn             = document.getElementById("flagBtn");
+const fullscreenBtn       = document.getElementById("fullscreenBtn");
 
 // ── Annotation state ──────────────────────────────────────────────────────────
 let activeTool = "draw";
 let isDrawing  = false;
 let undoStack  = [];
 
-// ── Session name display ──────────────────────────────────────────────────────
+// ── localStorage key for annotations ─────────────────────────────────────────
+function annotationKey(filename) {
+    return `wbcs_ann_${filename}`;
+}
+
+// ── Save annotations for current image to localStorage ────────────────────────
+function saveAnnotations() {
+    if (currentIndex === -1 || images.length === 0) return;
+    const key  = annotationKey(images[currentIndex]);
+    const data = annotationCanvas.toDataURL("image/png");
+    try {
+        localStorage.setItem(key, data);
+        annotationSavedBadge.textContent = "✓ Annotations saved";
+        setTimeout(() => { annotationSavedBadge.textContent = ""; }, 2000);
+    } catch (e) {
+        // localStorage can run out of space with many large canvases
+        annotationSavedBadge.textContent = "⚠ Could not save (storage full)";
+    }
+}
+
+// ── Restore saved annotations for a given filename ────────────────────────────
+function restoreAnnotations(filename) {
+    const key  = annotationKey(filename);
+    const data = localStorage.getItem(key);
+    if (!data) return;
+    const img  = new Image();
+    img.onload = () => {
+        annCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+        annCtx.drawImage(img, 0, 0);
+    };
+    img.src = data;
+}
+
+// ── Clear stored annotations for a filename ───────────────────────────────────
+function clearStoredAnnotations(filename) {
+    localStorage.removeItem(annotationKey(filename));
+}
+
+saveAnnotationsBtn.addEventListener("click", saveAnnotations);
+
+// ── Session name ──────────────────────────────────────────────────────────────
 fetch(`${BASE_URL}/session-info`)
     .then(res => res.json())
     .then(session => {
-        if (session && session.name) {
-            sessionHeader.textContent = session.name;
-        } else {
-            sessionHeader.textContent = "Live Whiteboard";
-        }
+        sessionHeader.textContent = (session && session.name) ? session.name : "Live Whiteboard";
     })
     .catch(() => { sessionHeader.textContent = "Live Whiteboard"; });
 
@@ -70,6 +111,9 @@ undoBtn.addEventListener("click", () => {
 clearAnnotations.addEventListener("click", () => {
     saveUndo();
     annCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+    // Also clear from localStorage so the cleared state persists
+    if (currentIndex !== -1) clearStoredAnnotations(images[currentIndex]);
+    annotationSavedBadge.textContent = "";
 });
 
 // ── Canvas coordinate helper ──────────────────────────────────────────────────
@@ -160,16 +204,30 @@ function loadImageToCanvas(src) {
     });
 }
 
-// ── Show image + clear annotations ───────────────────────────────────────────
+// ── Show image — restore saved annotations, reset undo stack ──────────────────
 function showImage(index) {
     if (index < 0 || index >= images.length) return;
     currentIndex = index;
+
+    // Reset drawing state for new image
     undoStack = [];
-    annCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
-    loadImageToCanvas(`${BASE_URL}/images/${images[currentIndex]}?t=${Date.now()}`);
+    isDrawing = false;
+    annotationSavedBadge.textContent = "";
+
+    const filename = images[currentIndex];
+
+    loadImageToCanvas(`${BASE_URL}/images/${filename}?t=${Date.now()}`)
+        .then(() => {
+            // Restore any saved annotations for this image
+            restoreAnnotations(filename);
+        });
+
     imageCount.textContent = (currentIndex + 1) + " / " + images.length;
     backBtn.disabled    = currentIndex === 0;
     forwardBtn.disabled = currentIndex === images.length - 1;
+
+    // Update flag button state
+    updateFlagBtn(filename);
 }
 
 // ── Image list ────────────────────────────────────────────────────────────────
@@ -219,6 +277,67 @@ loadImageList().then(() => {
     }
 });
 
+// ── Feature 4: Flag this image ────────────────────────────────────────────────
+// Flags are stored in localStorage per-image so the state persists across
+// page reloads on the same device.
+function flagKey(filename) {
+    return `wbcs_flag_${filename}`;
+}
+
+function isFlagged(filename) {
+    return localStorage.getItem(flagKey(filename)) === "1";
+}
+
+function updateFlagBtn(filename) {
+    if (isFlagged(filename)) {
+        flagBtn.textContent = "✓ Flagged";
+        flagBtn.classList.add("flagged");
+    } else {
+        flagBtn.textContent = "🖐 Flag This Image";
+        flagBtn.classList.remove("flagged");
+    }
+}
+
+flagBtn.addEventListener("click", () => {
+    if (currentIndex === -1 || images.length === 0) return;
+    const filename = images[currentIndex];
+
+    if (isFlagged(filename)) {
+        // Un-flag
+        localStorage.removeItem(flagKey(filename));
+        fetch(`${BASE_URL}/flag`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename })
+        }).catch(() => {});
+    } else {
+        // Flag
+        localStorage.setItem(flagKey(filename), "1");
+        fetch(`${BASE_URL}/flag`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename })
+        }).catch(() => {});
+    }
+
+    updateFlagBtn(filename);
+});
+
+// ── Feature 6: Full-screen mode ───────────────────────────────────────────────
+fullscreenBtn.addEventListener("click", () => {
+    if (!document.fullscreenElement) {
+        canvasWrapper.requestFullscreen().catch(err => {
+            console.warn("Fullscreen not available:", err);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+});
+
+document.addEventListener("fullscreenchange", () => {
+    fullscreenBtn.textContent = document.fullscreenElement ? "✕ Exit Full Screen" : "⛶ Full Screen";
+});
+
 // ── Download with annotations ─────────────────────────────────────────────────
 document.getElementById("downloadBtn").addEventListener("click", () => {
     if (currentIndex === -1 || images.length === 0) return;
@@ -234,7 +353,7 @@ document.getElementById("downloadBtn").addEventListener("click", () => {
     link.click();
 });
 
-// ── Download all ──────────────────────────────────────────────────────────────
+// ── Download all (no annotations) ────────────────────────────────────────────
 document.getElementById("downloadAllBtn").addEventListener("click", () => {
     if (images.length === 0) return;
     images.forEach((filename, i) => {

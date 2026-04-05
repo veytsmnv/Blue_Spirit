@@ -39,22 +39,15 @@
       color: var(--text);
     }
 
-    .session-name-input:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
+    .session-name-input:focus { outline: none; border-color: var(--accent); }
 
     .session-badge {
       font-size: 0.8rem;
       color: var(--muted);
       letter-spacing: 0.06em;
-      margin-left: 4px;
     }
 
-    .session-badge.active {
-      color: #16a34a;
-      font-weight: 600;
-    }
+    .session-badge.active { color: #16a34a; font-weight: 600; }
 
     /* Enhancement sliders */
     .slider-row {
@@ -62,7 +55,6 @@
       flex-wrap: wrap;
       gap: 20px;
       align-items: center;
-      margin-top: 4px;
     }
 
     .slider-group {
@@ -85,13 +77,12 @@
 
     .slider-group span {
       font-size: 0.8rem;
-      color: var(--text);
       min-width: 36px;
       text-align: right;
       font-variant-numeric: tabular-nums;
     }
 
-    /* Auto-capture */
+    /* Timer */
     .timer-row {
       display: flex;
       flex-wrap: wrap;
@@ -116,10 +107,61 @@
       font-size: 0.8rem;
       color: var(--muted);
       letter-spacing: 0.04em;
-      min-width: 120px;
     }
 
     #timerCountdown.running { color: #16a34a; font-weight: 600; }
+
+    /* Flag panel */
+    .flag-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .flag-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .flag-item:hover { background: var(--surface); }
+
+    .flag-item .flag-filename {
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .flag-item .flag-count {
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .flag-count-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: var(--bg);
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-left: 6px;
+    }
+
+    #noFlagsMsg {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -166,7 +208,7 @@
     </div>
   </div>
 
-  <!-- ── Auto-Capture Panel ── -->
+  <!-- ── Auto-Capture Timer Panel ── -->
   <div class="panel">
     <h2>Auto-Capture</h2>
     <div class="timer-row">
@@ -175,6 +217,23 @@
       <button class="nav-btn" id="startTimerBtn">Start Timer</button>
       <button class="nav-btn" id="stopTimerBtn" disabled>Stop Timer</button>
       <span id="timerCountdown">Timer off</span>
+    </div>
+  </div>
+
+  <!-- ── Student Flags Panel ── -->
+  <div class="panel">
+    <h2>
+      Student Flags
+      <span class="flag-count-badge" id="totalFlagBadge" style="display:none"></span>
+    </h2>
+    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">
+      Students can flag images they want to revisit. Click a flagged image below to jump to it.
+    </p>
+    <div class="flag-list" id="flagList">
+      <span id="noFlagsMsg">No flags yet.</span>
+    </div>
+    <div style="margin-top:12px">
+      <button class="nav-btn" id="clearAllFlagsBtn">Clear All Flags</button>
     </div>
   </div>
 

@@ -19,7 +19,6 @@ function loadImageList() {
 function showImage(index) {
     if (index < 0 || index >= images.length) return;
     currentIndex = index;
-    // images[index] may be "SessionFolder/photo_1.jpg" — /images/ static serves the full capture dir
     feed.src = `${BASE_URL}/images/${images[currentIndex]}?t=${Date.now()}`;
     imageCount.textContent = (currentIndex + 1) + " / " + images.length;
     backBtn.disabled    = currentIndex === 0;
@@ -43,7 +42,7 @@ function doCapture() {
             if (!res.ok) throw new Error("Capture failed");
             return res.json();
         })
-        .then(data => {
+        .then(() => {
             statusEl.textContent = "Photo taken!";
             statusEl.className   = "success";
             return loadImageList().then(() => showImage(images.length - 1));
@@ -64,7 +63,6 @@ document.getElementById("uploadBtn").addEventListener("click", () => {
 document.getElementById("uploadInput").addEventListener("change", (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const formData = new FormData();
     formData.append("image", file);
     statusEl.textContent = "Uploading…";
@@ -153,7 +151,6 @@ function updateSessionUI(session) {
     }
 }
 
-// Load existing session on page load
 fetch(`${BASE_URL}/session`)
     .then(res => res.json())
     .then(session => {
@@ -214,7 +211,6 @@ brightnessSlider.addEventListener("input", updateSliderDisplays);
 contrastSlider.addEventListener("input",   updateSliderDisplays);
 sharpnessSlider.addEventListener("input",  updateSliderDisplays);
 
-// Load saved settings on startup
 fetch(`${BASE_URL}/settings`)
     .then(res => res.json())
     .then(s => {
@@ -234,7 +230,6 @@ document.getElementById("saveSettingsBtn").addEventListener("click", () => {
             sharpness:  parseFloat(sharpnessSlider.value),
         })
     })
-    .then(res => res.json())
     .then(() => {
         statusEl.textContent = "Enhancement settings saved. Will apply to next capture.";
         statusEl.className   = "success";
@@ -246,7 +241,6 @@ document.getElementById("resetSettingsBtn").addEventListener("click", () => {
     contrastSlider.value   = 1.0;
     sharpnessSlider.value  = 0.25;
     updateSliderDisplays();
-
     fetch(`${BASE_URL}/settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -263,15 +257,14 @@ const startTimerBtn      = document.getElementById("startTimerBtn");
 const stopTimerBtn       = document.getElementById("stopTimerBtn");
 const timerCountdown     = document.getElementById("timerCountdown");
 
-let timerHandle      = null;  // setInterval handle
-let countdownHandle  = null;  // setInterval handle for countdown display
+let timerHandle     = null;
+let countdownHandle = null;
 let secondsRemaining = 0;
 
 function startCountdownDisplay(intervalSecs) {
     secondsRemaining = intervalSecs;
     timerCountdown.textContent = `Next capture in ${secondsRemaining}s`;
     timerCountdown.className   = "running";
-
     countdownHandle = setInterval(() => {
         secondsRemaining--;
         if (secondsRemaining <= 0) secondsRemaining = intervalSecs;
@@ -292,18 +285,14 @@ startTimerBtn.addEventListener("click", () => {
         alert("Please set an interval of at least 5 seconds.");
         return;
     }
-
-    startTimerBtn.disabled        = true;
-    stopTimerBtn.disabled         = false;
-    timerIntervalInput.disabled   = true;
-
-    // Capture immediately, then on interval
+    startTimerBtn.disabled      = true;
+    stopTimerBtn.disabled       = false;
+    timerIntervalInput.disabled = true;
     doCapture();
     startCountdownDisplay(intervalSecs);
-
     timerHandle = setInterval(() => {
         doCapture();
-        secondsRemaining = intervalSecs; // reset countdown after each capture
+        secondsRemaining = intervalSecs;
     }, intervalSecs * 1000);
 });
 
@@ -311,10 +300,78 @@ stopTimerBtn.addEventListener("click", () => {
     clearInterval(timerHandle);
     timerHandle = null;
     stopCountdownDisplay();
-
     startTimerBtn.disabled      = false;
     stopTimerBtn.disabled       = true;
     timerIntervalInput.disabled = false;
     statusEl.textContent = "Auto-capture stopped.";
     statusEl.className   = "";
+});
+
+// ── Feature 4: Student flags — poll and display ───────────────────────────────
+const flagList        = document.getElementById("flagList");
+const noFlagsMsg      = document.getElementById("noFlagsMsg");
+const totalFlagBadge  = document.getElementById("totalFlagBadge");
+const clearAllFlagsBtn= document.getElementById("clearAllFlagsBtn");
+
+function renderFlags(flags) {
+    // flags: { [filename]: count }
+    const entries = Object.entries(flags).filter(([, count]) => count > 0);
+
+    if (entries.length === 0) {
+        noFlagsMsg.style.display = "";
+        flagList.innerHTML = "";
+        flagList.appendChild(noFlagsMsg);
+        totalFlagBadge.style.display = "none";
+        return;
+    }
+
+    noFlagsMsg.style.display = "none";
+    const totalFlags = entries.reduce((sum, [, c]) => sum + c, 0);
+    totalFlagBadge.textContent = totalFlags;
+    totalFlagBadge.style.display = "";
+
+    // Sort by count descending
+    entries.sort((a, b) => b[1] - a[1]);
+
+    flagList.innerHTML = "";
+    entries.forEach(([filename, count]) => {
+        const item = document.createElement("div");
+        item.className = "flag-item";
+
+        const nameSpan  = document.createElement("span");
+        nameSpan.className   = "flag-filename";
+        nameSpan.textContent = filename.split("/").pop();
+
+        const countSpan = document.createElement("span");
+        countSpan.className   = "flag-count";
+        countSpan.textContent = count === 1 ? "1 student" : `${count} students`;
+
+        item.appendChild(nameSpan);
+        item.appendChild(countSpan);
+
+        // Clicking a flag item jumps the professor to that image
+        item.addEventListener("click", () => {
+            const idx = images.indexOf(filename);
+            if (idx !== -1) showImage(idx);
+        });
+
+        flagList.appendChild(item);
+    });
+}
+
+function pollFlags() {
+    fetch(`${BASE_URL}/flags`)
+        .then(res => res.json())
+        .then(flags => renderFlags(flags))
+        .catch(() => {});
+}
+
+// Poll flags every 5 seconds
+pollFlags();
+setInterval(pollFlags, 5000);
+
+clearAllFlagsBtn.addEventListener("click", () => {
+    if (!confirm("Clear all student flags?")) return;
+    fetch(`${BASE_URL}/flags`, { method: "DELETE" })
+        .then(() => renderFlags({}));
 });

@@ -22,6 +22,10 @@ const SESSION_PATH     = path.join(__dirname, "session.json");
 
 let lastUpdate = Date.now();
 
+// ── In-memory flag store: { [filename]: count } ───────────────────────────────
+// Flags reset when the server restarts (intentional — per-session signal).
+let flags = {};
+
 // ── Default enhancement settings ──────────────────────────────────────────────
 const DEFAULT_SETTINGS = { brightness: 0, contrast: 1.0, sharpness: 0.25 };
 
@@ -66,7 +70,7 @@ const LOCAL_IP    = getLocalIP();
 const STUDENT_URL = `http://${LOCAL_IP}:${PORT}/student.html`;
 console.log(`Student URL: ${STUDENT_URL}`);
 
-// ── Multer — session-aware upload destination ─────────────────────────────────
+// ── Multer ────────────────────────────────────────────────────────────────────
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = activeCaptureDir();
@@ -86,7 +90,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// ── Helper: sorted photos ─────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function getSortedPhotos(dir, descending = false) {
     if (!fs.existsSync(dir)) return [];
     return fs.readdirSync(dir)
@@ -131,6 +135,10 @@ app.post("/session", (req, res) => {
 
     fs.mkdirSync(path.join(CAPTURE_DIR, folder), { recursive: true });
     fs.writeFileSync(SESSION_PATH, JSON.stringify(session, null, 2));
+
+    // Clear flags when a new session starts
+    flags = {};
+
     console.log("Session started:", session.name, "→", folder);
     res.json(session);
 });
@@ -138,6 +146,7 @@ app.post("/session", (req, res) => {
 app.delete("/session", (req, res) => {
     try {
         if (fs.existsSync(SESSION_PATH)) fs.unlinkSync(SESSION_PATH);
+        flags = {};
         console.log("Session ended.");
         res.json({ ok: true });
     } catch (e) {
@@ -164,10 +173,40 @@ app.post("/settings", (req, res) => {
     res.json(updated);
 });
 
+// ── Student flags ─────────────────────────────────────────────────────────────
+// GET /flags — professor polls this to see flagged images and counts
+app.get("/flags", (req, res) => res.json(flags));
+
+// POST /flag — student flags an image
+app.post("/flag", (req, res) => {
+    const { filename } = req.body;
+    if (!filename) return res.status(400).json({ error: "filename required" });
+    flags[filename] = (flags[filename] || 0) + 1;
+    console.log(`Flag: ${filename} (${flags[filename]} total)`);
+    res.json({ ok: true, count: flags[filename] });
+});
+
+// DELETE /flag — student un-flags an image
+app.delete("/flag", (req, res) => {
+    const { filename } = req.body;
+    if (!filename) return res.status(400).json({ error: "filename required" });
+    if (flags[filename] && flags[filename] > 0) {
+        flags[filename]--;
+        if (flags[filename] === 0) delete flags[filename];
+    }
+    res.json({ ok: true });
+});
+
+// DELETE /flags — professor clears all flags
+app.delete("/flags", (req, res) => {
+    flags = {};
+    res.json({ ok: true });
+});
+
 // ── Last update ───────────────────────────────────────────────────────────────
 app.get("/last-update", (req, res) => res.json({ lastUpdate }));
 
-// ── Image list (session-scoped) ───────────────────────────────────────────────
+// ── Image list ────────────────────────────────────────────────────────────────
 app.get("/images-list", (req, res) => {
     const dir   = activeCaptureDir();
     const files = getSortedPhotos(dir).map(f => prefixFile(f));
@@ -205,8 +244,7 @@ app.post("/upload", upload.single("image"), (req, res) => {
     res.json({ filename: prefixFile(req.file.filename) });
 });
 
-// ── Download — supports "folder/filename" paths ───────────────────────────────
-// Fix: Express 5 requires named wildcard params, not bare *
+// ── Download ──────────────────────────────────────────────────────────────────
 app.get("/download/:folder/:filename", (req, res) => {
     const filepath = path.join(CAPTURE_DIR, req.params.folder, req.params.filename);
     if (!fs.existsSync(filepath)) return res.status(404).json({ error: "File not found" });
@@ -219,7 +257,7 @@ app.get("/download/:filename", (req, res) => {
     res.download(filepath);
 });
 
-// ── Delete — supports "folder/filename" paths ─────────────────────────────────
+// ── Delete ────────────────────────────────────────────────────────────────────
 app.delete("/images/:folder/:filename", (req, res) => {
     const filepath = path.join(CAPTURE_DIR, req.params.folder, req.params.filename);
     fs.unlink(filepath, (err) => {
