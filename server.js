@@ -127,38 +127,51 @@ app.post("/session", (req, res) => {
     const { name } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: "Session name required" });
 
-    const safeName = name.trim().replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "_");
+    const safeName = name.trim().replace(/[^a-zA-Z0-9_\-]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
 
-    // Look for an existing folder that matches this session name.
-    // Folders are named <safeName>_<timestamp>, so we match on the prefix.
-    let folder   = null;
-    let resumed  = false;
+    // Search all existing session subfolders for a matching safeName.
+    // We store safeName inside each session's folder as a marker file so
+    // matching is exact — no fragile string prefix comparison.
+    let folder  = null;
+    let resumed = false;
 
     if (fs.existsSync(CAPTURE_DIR)) {
-        const existing = fs.readdirSync(CAPTURE_DIR).find(entry => {
-            const fullPath = path.join(CAPTURE_DIR, entry);
-            return fs.statSync(fullPath).isDirectory() && entry.startsWith(safeName + "_");
+        const dirs = fs.readdirSync(CAPTURE_DIR).filter(entry => {
+            return fs.statSync(path.join(CAPTURE_DIR, entry)).isDirectory();
         });
-        if (existing) {
-            folder  = existing;
-            resumed = true;
+
+        console.log("Existing session folders:", dirs);
+        console.log("Looking for safeName:", safeName);
+
+        for (const dir of dirs) {
+            const markerPath = path.join(CAPTURE_DIR, dir, ".session_name");
+            if (fs.existsSync(markerPath)) {
+                const storedName = fs.readFileSync(markerPath, "utf8").trim();
+                console.log(`  ${dir} → stored safeName: "${storedName}"`);
+                if (storedName === safeName) {
+                    folder  = dir;
+                    resumed = true;
+                    console.log("  → Match found! Resuming.");
+                    break;
+                }
+            }
         }
     }
 
-    // No matching folder found — create a new one
+    // No matching folder — create a new one
     if (!folder) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
         folder = `${safeName}_${timestamp}`;
+        console.log("No match found. Creating new folder:", folder);
     }
 
-    const session = {
-        name: name.trim(),
-        folder,
-        startedAt: new Date().toISOString(),
-        resumed
-    };
+    const folderPath = path.join(CAPTURE_DIR, folder);
+    fs.mkdirSync(folderPath, { recursive: true });
 
-    fs.mkdirSync(path.join(CAPTURE_DIR, folder), { recursive: true });
+    // Write the marker file so future resumes can match this folder
+    fs.writeFileSync(path.join(folderPath, ".session_name"), safeName);
+
+    const session = { name: name.trim(), safeName, folder, startedAt: new Date().toISOString(), resumed };
     fs.writeFileSync(SESSION_PATH, JSON.stringify(session, null, 2));
     flags = {};
 
