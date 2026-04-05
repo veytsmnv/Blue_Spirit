@@ -127,16 +127,42 @@ app.post("/session", (req, res) => {
     const { name } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: "Session name required" });
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    const safeName  = name.trim().replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "_");
-    const folder    = `${safeName}_${timestamp}`;
-    const session   = { name: name.trim(), folder, startedAt: new Date().toISOString() };
+    const safeName = name.trim().replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "_");
+
+    // Look for an existing folder that matches this session name.
+    // Folders are named <safeName>_<timestamp>, so we match on the prefix.
+    let folder   = null;
+    let resumed  = false;
+
+    if (fs.existsSync(CAPTURE_DIR)) {
+        const existing = fs.readdirSync(CAPTURE_DIR).find(entry => {
+            const fullPath = path.join(CAPTURE_DIR, entry);
+            return fs.statSync(fullPath).isDirectory() && entry.startsWith(safeName + "_");
+        });
+        if (existing) {
+            folder  = existing;
+            resumed = true;
+        }
+    }
+
+    // No matching folder found — create a new one
+    if (!folder) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+        folder = `${safeName}_${timestamp}`;
+    }
+
+    const session = {
+        name: name.trim(),
+        folder,
+        startedAt: new Date().toISOString(),
+        resumed
+    };
 
     fs.mkdirSync(path.join(CAPTURE_DIR, folder), { recursive: true });
     fs.writeFileSync(SESSION_PATH, JSON.stringify(session, null, 2));
     flags = {};
 
-    console.log("Session started:", session.name, "→", folder);
+    console.log(resumed ? "Session resumed:" : "Session started:", session.name, "→", folder);
     res.json(session);
 });
 

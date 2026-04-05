@@ -237,9 +237,19 @@ startSessionBtn.addEventListener("click", () => {
     .then(res => res.json())
     .then(session => {
         updateSessionUI(session);
-        clearImageDisplay();
-        statusEl.textContent = `Session "${session.name}" started.`;
-        statusEl.className   = "success";
+        if (session.resumed) {
+            // Load existing images from the resumed session
+            loadImageList().then(() => {
+                const count = images.length;
+                statusEl.textContent = `Resumed session "${session.name}" — ${count} existing image${count !== 1 ? "s" : ""} loaded.`;
+                statusEl.className   = "success";
+                if (count > 0) showImage(count - 1);
+            });
+        } else {
+            clearImageDisplay();
+            statusEl.textContent = `Session "${session.name}" started.`;
+            statusEl.className   = "success";
+        }
     })
     .catch(err => {
         statusEl.textContent = "Failed to start session: " + err.message;
