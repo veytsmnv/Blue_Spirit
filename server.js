@@ -22,8 +22,7 @@ const SESSION_PATH     = path.join(__dirname, "session.json");
 
 let lastUpdate = Date.now();
 
-// ── In-memory flag store: { [filename]: count } ───────────────────────────────
-// Flags reset when the server restarts (intentional — per-session signal).
+// ── In-memory flag store ──────────────────────────────────────────────────────
 let flags = {};
 
 // ── Default enhancement settings ──────────────────────────────────────────────
@@ -135,8 +134,6 @@ app.post("/session", (req, res) => {
 
     fs.mkdirSync(path.join(CAPTURE_DIR, folder), { recursive: true });
     fs.writeFileSync(SESSION_PATH, JSON.stringify(session, null, 2));
-
-    // Clear flags when a new session starts
     flags = {};
 
     console.log("Session started:", session.name, "→", folder);
@@ -159,6 +156,38 @@ app.get("/session-info", (req, res) => {
     res.json(session ? { name: session.name, startedAt: session.startedAt } : null);
 });
 
+// ── Delete all images in the active session folder ────────────────────────────
+app.delete("/session/images", (req, res) => {
+    const session = loadSession();
+    if (!session) return res.status(400).json({ error: "No active session" });
+
+    const dir = path.join(CAPTURE_DIR, session.folder);
+    if (!fs.existsSync(dir)) return res.json({ deleted: 0 });
+
+    const files = fs.readdirSync(dir)
+        .filter(f => f.startsWith("photo_") && f.endsWith(".jpg"));
+
+    let deleted = 0;
+    const errors = [];
+
+    files.forEach(f => {
+        try {
+            fs.unlinkSync(path.join(dir, f));
+            deleted++;
+        } catch (e) {
+            errors.push(f);
+        }
+    });
+
+    lastUpdate = Date.now();
+    console.log(`Deleted ${deleted} images from session "${session.name}"`);
+
+    if (errors.length > 0) {
+        return res.status(207).json({ deleted, errors });
+    }
+    res.json({ deleted });
+});
+
 // ── Enhancement settings ──────────────────────────────────────────────────────
 app.get("/settings", (req, res) => res.json(loadSettings()));
 
@@ -174,19 +203,15 @@ app.post("/settings", (req, res) => {
 });
 
 // ── Student flags ─────────────────────────────────────────────────────────────
-// GET /flags — professor polls this to see flagged images and counts
 app.get("/flags", (req, res) => res.json(flags));
 
-// POST /flag — student flags an image
 app.post("/flag", (req, res) => {
     const { filename } = req.body;
     if (!filename) return res.status(400).json({ error: "filename required" });
     flags[filename] = (flags[filename] || 0) + 1;
-    console.log(`Flag: ${filename} (${flags[filename]} total)`);
     res.json({ ok: true, count: flags[filename] });
 });
 
-// DELETE /flag — student un-flags an image
 app.delete("/flag", (req, res) => {
     const { filename } = req.body;
     if (!filename) return res.status(400).json({ error: "filename required" });
@@ -197,7 +222,6 @@ app.delete("/flag", (req, res) => {
     res.json({ ok: true });
 });
 
-// DELETE /flags — professor clears all flags
 app.delete("/flags", (req, res) => {
     flags = {};
     res.json({ ok: true });
@@ -257,7 +281,7 @@ app.get("/download/:filename", (req, res) => {
     res.download(filepath);
 });
 
-// ── Delete ────────────────────────────────────────────────────────────────────
+// ── Delete single image ───────────────────────────────────────────────────────
 app.delete("/images/:folder/:filename", (req, res) => {
     const filepath = path.join(CAPTURE_DIR, req.params.folder, req.params.filename);
     fs.unlink(filepath, (err) => {

@@ -8,6 +8,19 @@ const BASE_URL   = `http://${window.location.hostname}:3000`;
 
 let images       = [];
 let currentIndex = -1;
+let activeSession = null;  // tracks current session state in JS
+
+// ── Session-gated controls ────────────────────────────────────────────────────
+// These elements are disabled until a session is active
+const SESSION_GATED = [
+    document.getElementById("captureBtn"),
+    document.getElementById("uploadBtn"),
+    document.getElementById("startTimerBtn"),
+];
+
+function setSessionGatedEnabled(enabled) {
+    SESSION_GATED.forEach(el => { el.disabled = !enabled; });
+}
 
 // ── Image list & display ──────────────────────────────────────────────────────
 function loadImageList() {
@@ -25,12 +38,17 @@ function showImage(index) {
     forwardBtn.disabled = currentIndex === images.length - 1;
 }
 
+function clearImageDisplay() {
+    feed.src = "";
+    imageCount.textContent = "";
+    backBtn.disabled = true;
+    forwardBtn.disabled = true;
+    images = [];
+    currentIndex = -1;
+}
+
 backBtn.addEventListener("click",    () => showImage(currentIndex - 1));
 forwardBtn.addEventListener("click", () => showImage(currentIndex + 1));
-
-loadImageList().then(() => {
-    if (images.length > 0) showImage(images.length - 1);
-}).catch(err => console.error("load failed:", err));
 
 // ── Capture ───────────────────────────────────────────────────────────────────
 function doCapture() {
@@ -81,27 +99,54 @@ document.getElementById("uploadInput").addEventListener("change", (e) => {
         });
 });
 
-// ── Delete ────────────────────────────────────────────────────────────────────
+// ── Delete single image ───────────────────────────────────────────────────────
 document.getElementById("deleteBtn").addEventListener("click", () => {
     if (currentIndex === -1 || images.length === 0) return;
     const filename = images[currentIndex];
-    if (!confirm("Delete " + filename + "?")) return;
+    if (!confirm("Delete " + filename.split("/").pop() + "?")) return;
 
     fetch(`${BASE_URL}/images/${filename}`, { method: "DELETE" })
         .then(res => {
             if (res.ok) {
                 images.splice(currentIndex, 1);
                 if (images.length === 0) {
-                    feed.src = "";
-                    imageCount.textContent = "";
-                    backBtn.disabled = true;
-                    forwardBtn.disabled = true;
+                    clearImageDisplay();
                 } else {
                     currentIndex = Math.min(currentIndex, images.length - 1);
                     showImage(currentIndex);
                 }
             }
         });
+});
+
+// ── Delete all images in session ──────────────────────────────────────────────
+function deleteAllImages() {
+    return new Promise((resolve, reject) => {
+        fetch(`${BASE_URL}/session/images`, { method: "DELETE" })
+            .then(res => res.json())
+            .then(data => {
+                clearImageDisplay();
+                statusEl.textContent = `Deleted ${data.deleted} image${data.deleted !== 1 ? "s" : ""}.`;
+                statusEl.className   = "";
+                resolve(data.deleted);
+            })
+            .catch(err => {
+                statusEl.textContent = "Delete all failed: " + err.message;
+                statusEl.className   = "error";
+                reject(err);
+            });
+    });
+}
+
+document.getElementById("deleteAllBtn").addEventListener("click", () => {
+    const count = images.length;
+    if (count === 0) {
+        statusEl.textContent = "No images to delete.";
+        statusEl.className   = "";
+        return;
+    }
+    if (!confirm(`Delete all ${count} image${count !== 1 ? "s" : ""} in this session? This cannot be undone.`)) return;
+    deleteAllImages();
 });
 
 // ── Download ──────────────────────────────────────────────────────────────────
@@ -126,13 +171,18 @@ document.getElementById("downloadAllBtn").addEventListener("click", () => {
 });
 
 // ── Session management ────────────────────────────────────────────────────────
-const sessionNameInput = document.getElementById("sessionNameInput");
-const startSessionBtn  = document.getElementById("startSessionBtn");
-const endSessionBtn    = document.getElementById("endSessionBtn");
-const sessionBadge     = document.getElementById("sessionBadge");
+const sessionNameInput     = document.getElementById("sessionNameInput");
+const startSessionBtn      = document.getElementById("startSessionBtn");
+const endSessionBtn        = document.getElementById("endSessionBtn");
+const sessionBadge         = document.getElementById("sessionBadge");
+const deleteAllRow         = document.getElementById("deleteAllRow");
+const sessionRequiredNotice= document.getElementById("sessionRequiredNotice");
 
 function updateSessionUI(session) {
+    activeSession = session;
+
     if (session) {
+        // Session active — unlock everything
         sessionNameInput.value    = session.name;
         sessionNameInput.disabled = true;
         startSessionBtn.disabled  = true;
@@ -140,27 +190,44 @@ function updateSessionUI(session) {
         sessionBadge.textContent  = `● Active: ${session.name}`;
         sessionBadge.className    = "session-badge active";
         imageLabel.textContent    = session.name;
+        deleteAllRow.style.display = "";
+        sessionRequiredNotice.style.display = "none";
+        setSessionGatedEnabled(true);
     } else {
+        // No session — lock capture controls and show notice
         sessionNameInput.value    = "";
         sessionNameInput.disabled = false;
         startSessionBtn.disabled  = false;
         endSessionBtn.disabled    = true;
         sessionBadge.textContent  = "No active session";
         sessionBadge.className    = "session-badge";
-        imageLabel.textContent    = "Latest Capture";
+        imageLabel.textContent    = "Start a session to begin capturing";
+        deleteAllRow.style.display = "none";
+        sessionRequiredNotice.style.display = "";
+        setSessionGatedEnabled(false);
     }
 }
 
+// Load session state on page load
 fetch(`${BASE_URL}/session`)
     .then(res => res.json())
     .then(session => {
         updateSessionUI(session);
-        if (session) loadImageList().then(() => { if (images.length > 0) showImage(images.length - 1); });
+        if (session) {
+            loadImageList().then(() => {
+                if (images.length > 0) showImage(images.length - 1);
+            });
+        }
     });
 
 startSessionBtn.addEventListener("click", () => {
     const name = sessionNameInput.value.trim();
-    if (!name) { alert("Please enter a session name."); return; }
+    if (!name) {
+        sessionNameInput.focus();
+        sessionNameInput.style.borderColor = "#dc2626";
+        setTimeout(() => { sessionNameInput.style.borderColor = ""; }, 2000);
+        return;
+    }
 
     fetch(`${BASE_URL}/session`, {
         method: "POST",
@@ -170,24 +237,52 @@ startSessionBtn.addEventListener("click", () => {
     .then(res => res.json())
     .then(session => {
         updateSessionUI(session);
-        images = [];
-        feed.src = "";
-        imageCount.textContent = "";
+        clearImageDisplay();
         statusEl.textContent = `Session "${session.name}" started.`;
-        statusEl.className = "success";
+        statusEl.className   = "success";
     })
     .catch(err => {
         statusEl.textContent = "Failed to start session: " + err.message;
-        statusEl.className = "error";
+        statusEl.className   = "error";
     });
 });
 
-endSessionBtn.addEventListener("click", () => {
-    if (!confirm("End the current session?")) return;
+endSessionBtn.addEventListener("click", async () => {
+    if (!activeSession) return;
+
+    const imageCount = images.length;
+
+    // Step 1 — ask about deletion if there are images
+    if (imageCount > 0) {
+        const choice = confirm(
+            `End session "${activeSession.name}"?\n\n` +
+            `Click OK to delete all ${imageCount} image${imageCount !== 1 ? "s" : ""} and end the session.\n` +
+            `Click Cancel to end the session without deleting images.`
+        );
+
+        if (choice) {
+            // Delete all then end session
+            await deleteAllImages();
+        }
+    } else {
+        if (!confirm(`End session "${activeSession.name}"?`)) return;
+    }
+
+    // Step 2 — end the session
     fetch(`${BASE_URL}/session`, { method: "DELETE" })
         .then(res => res.json())
         .then(() => {
             updateSessionUI(null);
+            clearImageDisplay();
+            // Stop timer if running
+            if (timerHandle) {
+                clearInterval(timerHandle);
+                timerHandle = null;
+                stopCountdownDisplay();
+                startTimerBtn.disabled      = true;  // will be re-disabled by updateSessionUI
+                stopTimerBtn.disabled       = true;
+                timerIntervalInput.disabled = false;
+            }
             statusEl.textContent = "Session ended.";
             statusEl.className   = "";
         });
@@ -229,8 +324,7 @@ document.getElementById("saveSettingsBtn").addEventListener("click", () => {
             contrast:   parseFloat(contrastSlider.value),
             sharpness:  parseFloat(sharpnessSlider.value),
         })
-    })
-    .then(() => {
+    }).then(() => {
         statusEl.textContent = "Enhancement settings saved. Will apply to next capture.";
         statusEl.className   = "success";
     });
@@ -257,8 +351,8 @@ const startTimerBtn      = document.getElementById("startTimerBtn");
 const stopTimerBtn       = document.getElementById("stopTimerBtn");
 const timerCountdown     = document.getElementById("timerCountdown");
 
-let timerHandle     = null;
-let countdownHandle = null;
+let timerHandle      = null;
+let countdownHandle  = null;
 let secondsRemaining = 0;
 
 function startCountdownDisplay(intervalSecs) {
@@ -300,21 +394,21 @@ stopTimerBtn.addEventListener("click", () => {
     clearInterval(timerHandle);
     timerHandle = null;
     stopCountdownDisplay();
-    startTimerBtn.disabled      = false;
+    // Re-enable start only if session is still active
+    startTimerBtn.disabled      = !activeSession;
     stopTimerBtn.disabled       = true;
     timerIntervalInput.disabled = false;
     statusEl.textContent = "Auto-capture stopped.";
     statusEl.className   = "";
 });
 
-// ── Feature 4: Student flags — poll and display ───────────────────────────────
-const flagList        = document.getElementById("flagList");
-const noFlagsMsg      = document.getElementById("noFlagsMsg");
-const totalFlagBadge  = document.getElementById("totalFlagBadge");
-const clearAllFlagsBtn= document.getElementById("clearAllFlagsBtn");
+// ── Student flags ─────────────────────────────────────────────────────────────
+const flagList         = document.getElementById("flagList");
+const noFlagsMsg       = document.getElementById("noFlagsMsg");
+const totalFlagBadge   = document.getElementById("totalFlagBadge");
+const clearAllFlagsBtn = document.getElementById("clearAllFlagsBtn");
 
 function renderFlags(flags) {
-    // flags: { [filename]: count }
     const entries = Object.entries(flags).filter(([, count]) => count > 0);
 
     if (entries.length === 0) {
@@ -327,13 +421,12 @@ function renderFlags(flags) {
 
     noFlagsMsg.style.display = "none";
     const totalFlags = entries.reduce((sum, [, c]) => sum + c, 0);
-    totalFlagBadge.textContent = totalFlags;
+    totalFlagBadge.textContent   = totalFlags;
     totalFlagBadge.style.display = "";
 
-    // Sort by count descending
     entries.sort((a, b) => b[1] - a[1]);
-
     flagList.innerHTML = "";
+
     entries.forEach(([filename, count]) => {
         const item = document.createElement("div");
         item.className = "flag-item";
@@ -348,8 +441,6 @@ function renderFlags(flags) {
 
         item.appendChild(nameSpan);
         item.appendChild(countSpan);
-
-        // Clicking a flag item jumps the professor to that image
         item.addEventListener("click", () => {
             const idx = images.indexOf(filename);
             if (idx !== -1) showImage(idx);
@@ -366,7 +457,6 @@ function pollFlags() {
         .catch(() => {});
 }
 
-// Poll flags every 5 seconds
 pollFlags();
 setInterval(pollFlags, 5000);
 
