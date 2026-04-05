@@ -80,7 +80,7 @@ Blue Spirit is a Raspberry Pi-powered system that automatically captures, enhanc
 
 ## Hardware Requirements
 
-- **Raspberry Pi** (Pi 4 recommended for processing speed)
+- **Raspberry Pi** (Pi 5 recommended for processing speed)
 - **Raspberry Pi Camera Module** (Camera Module 3 or HQ Camera recommended)
 - **MicroSD card** — 16GB or larger
 - **Power supply** for the Pi
