@@ -226,7 +226,6 @@ function showImage(index) {
     backBtn.disabled    = currentIndex === 0;
     forwardBtn.disabled = currentIndex === images.length - 1;
 
-    // Update flag button state
     updateFlagBtn(filename);
 }
 
@@ -277,9 +276,7 @@ loadImageList().then(() => {
     }
 });
 
-// ── Feature 4: Flag this image ────────────────────────────────────────────────
-// Flags are stored in localStorage per-image so the state persists across
-// page reloads on the same device.
+// ── Flagging — state persists per image in localStorage across page reloads ────
 function flagKey(filename) {
     return `wbcs_flag_${filename}`;
 }
@@ -323,7 +320,7 @@ flagBtn.addEventListener("click", () => {
     updateFlagBtn(filename);
 });
 
-// ── Feature 6: Full-screen mode ───────────────────────────────────────────────
+// ── Fullscreen ────────────────────────────────────────────────────────────────
 fullscreenBtn.addEventListener("click", () => {
     if (!document.fullscreenElement) {
         canvasWrapper.requestFullscreen().catch(err => {

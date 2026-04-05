@@ -129,9 +129,7 @@ app.post("/session", (req, res) => {
 
     const safeName = name.trim().replace(/[^a-zA-Z0-9_\-]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
 
-    // Search all existing session subfolders for a matching safeName.
-    // We store safeName inside each session's folder as a marker file so
-    // matching is exact — no fragile string prefix comparison.
+    // Match against existing session folders using the .session_name marker file for exact comparison.
     let folder  = null;
     let resumed = false;
 
