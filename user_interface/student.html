@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Student View</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
@@ -13,6 +14,36 @@
       background: var(--surface);
       border: 1px solid var(--border);
       padding: 12px;
+    }
+
+    /* Full-screen: hide everything except the canvas wrapper */
+    #canvasWrapper:fullscreen,
+    #canvasWrapper:-webkit-full-screen {
+      padding: 0;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 100%;
+    }
+
+    #canvasWrapper:fullscreen #imageCanvas,
+    #canvasWrapper:-webkit-full-screen #imageCanvas {
+      width: auto;
+      max-width: 100vw;
+      max-height: 100vh;
+    }
+
+    #canvasWrapper:fullscreen #annotationCanvas,
+    #canvasWrapper:-webkit-full-screen #annotationCanvas {
+      width: auto;
+      max-width: 100vw;
+      max-height: 100vh;
+    }
+
+    #canvasWrapper:fullscreen .image-label,
+    #canvasWrapper:-webkit-full-screen .image-label {
+      display: none;
     }
 
     #imageCanvas {
@@ -43,6 +74,18 @@
       text-align: right;
     }
 
+    /* Annotation saved indicator */
+    #annotationSavedBadge {
+      font-size: 0.72rem;
+      color: #16a34a;
+      letter-spacing: 0.06em;
+      margin-top: 6px;
+      min-height: 1em;
+      text-align: right;
+      width: 100%;
+      max-width: 900px;
+    }
+
     .annotation-toolbar {
       display: flex;
       flex-wrap: wrap;
@@ -63,6 +106,8 @@
       padding: 7px 16px;
       cursor: pointer;
       transition: background 0.2s, color 0.2s;
+      text-decoration: none;
+      display: inline-block;
     }
 
     .tool-btn:hover  { background: var(--accent); color: var(--bg); }
@@ -93,6 +138,16 @@
       color: var(--muted);
       letter-spacing: 0.05em;
     }
+
+    /* Flag button states */
+    #flagBtn.flagged {
+      background: #000;
+      color: #fff;
+      border-color: #000;
+    }
+
+    /* Flag count badge shown on professor side — not visible here,
+       but the flag button shows local state */
   </style>
 </head>
 <body>
@@ -109,6 +164,9 @@
     <div class="image-label">Latest Capture</div>
   </div>
 
+  <div id="annotationSavedBadge"></div>
+
+  <!-- Annotation toolbar -->
   <div class="annotation-toolbar">
     <button class="tool-btn active" id="toolDraw">✏ Draw</button>
     <button class="tool-btn" id="toolEraser">◻ Eraser</button>
@@ -118,17 +176,25 @@
     <span class="tool-label">Size</span>
     <input type="range" id="brushSize" min="1" max="20" value="3">
     <div class="tool-separator"></div>
+    <button class="tool-btn" id="saveAnnotationsBtn">💾 Save</button>
     <button class="tool-btn" id="undoBtn">↩ Undo</button>
     <button class="tool-btn" id="clearAnnotations">✕ Clear</button>
   </div>
 
+  <!-- Navigation -->
   <div class="nav-buttons">
     <button class="nav-btn" id="backBtn" disabled>← Back</button>
     <span id="imageCount"></span>
     <button class="nav-btn" id="forwardBtn" disabled>Forward →</button>
   </div>
 
+  <!-- Actions -->
   <div class="download-buttons">
+    <button class="nav-btn" id="flagBtn">🖐 Flag This Image</button>
+    <button class="nav-btn" id="fullscreenBtn">⛶ Full Screen</button>
+  </div>
+
+  <div class="download-buttons" style="margin-top: 12px;">
     <button class="nav-btn" id="downloadBtn">Download with Annotations</button>
     <button class="nav-btn" id="downloadAllBtn">Download All (No Annotations)</button>
   </div>

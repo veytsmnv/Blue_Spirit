@@ -22,6 +22,9 @@ const SESSION_PATH     = path.join(__dirname, "session.json");
 
 let lastUpdate = Date.now();
 
+// ── In-memory flag store ──────────────────────────────────────────────────────
+let flags = {};
+
 // ── Default enhancement settings ──────────────────────────────────────────────
 const DEFAULT_SETTINGS = { brightness: 0, contrast: 1.0, sharpness: 0.25 };
 
@@ -66,7 +69,7 @@ const LOCAL_IP    = getLocalIP();
 const STUDENT_URL = `http://${LOCAL_IP}:${PORT}/student.html`;
 console.log(`Student URL: ${STUDENT_URL}`);
 
-// ── Multer — session-aware upload destination ─────────────────────────────────
+// ── Multer ────────────────────────────────────────────────────────────────────
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = activeCaptureDir();
@@ -86,7 +89,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// ── Helper: sorted photos ─────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function getSortedPhotos(dir, descending = false) {
     if (!fs.existsSync(dir)) return [];
     return fs.readdirSync(dir)
@@ -124,20 +127,62 @@ app.post("/session", (req, res) => {
     const { name } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: "Session name required" });
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    const safeName  = name.trim().replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "_");
-    const folder    = `${safeName}_${timestamp}`;
-    const session   = { name: name.trim(), folder, startedAt: new Date().toISOString() };
+    const safeName = name.trim().replace(/[^a-zA-Z0-9_\-]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
 
-    fs.mkdirSync(path.join(CAPTURE_DIR, folder), { recursive: true });
+    // Search all existing session subfolders for a matching safeName.
+    // We store safeName inside each session's folder as a marker file so
+    // matching is exact — no fragile string prefix comparison.
+    let folder  = null;
+    let resumed = false;
+
+    if (fs.existsSync(CAPTURE_DIR)) {
+        const dirs = fs.readdirSync(CAPTURE_DIR).filter(entry => {
+            return fs.statSync(path.join(CAPTURE_DIR, entry)).isDirectory();
+        });
+
+        console.log("Existing session folders:", dirs);
+        console.log("Looking for safeName:", safeName);
+
+        for (const dir of dirs) {
+            const markerPath = path.join(CAPTURE_DIR, dir, ".session_name");
+            if (fs.existsSync(markerPath)) {
+                const storedName = fs.readFileSync(markerPath, "utf8").trim();
+                console.log(`  ${dir} → stored safeName: "${storedName}"`);
+                if (storedName === safeName) {
+                    folder  = dir;
+                    resumed = true;
+                    console.log("  → Match found! Resuming.");
+                    break;
+                }
+            }
+        }
+    }
+
+    // No matching folder — create a new one
+    if (!folder) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+        folder = `${safeName}_${timestamp}`;
+        console.log("No match found. Creating new folder:", folder);
+    }
+
+    const folderPath = path.join(CAPTURE_DIR, folder);
+    fs.mkdirSync(folderPath, { recursive: true });
+
+    // Write the marker file so future resumes can match this folder
+    fs.writeFileSync(path.join(folderPath, ".session_name"), safeName);
+
+    const session = { name: name.trim(), safeName, folder, startedAt: new Date().toISOString(), resumed };
     fs.writeFileSync(SESSION_PATH, JSON.stringify(session, null, 2));
-    console.log("Session started:", session.name, "→", folder);
+    flags = {};
+
+    console.log(resumed ? "Session resumed:" : "Session started:", session.name, "→", folder);
     res.json(session);
 });
 
 app.delete("/session", (req, res) => {
     try {
         if (fs.existsSync(SESSION_PATH)) fs.unlinkSync(SESSION_PATH);
+        flags = {};
         console.log("Session ended.");
         res.json({ ok: true });
     } catch (e) {
@@ -148,6 +193,38 @@ app.delete("/session", (req, res) => {
 app.get("/session-info", (req, res) => {
     const session = loadSession();
     res.json(session ? { name: session.name, startedAt: session.startedAt } : null);
+});
+
+// ── Delete all images in the active session folder ────────────────────────────
+app.delete("/session/images", (req, res) => {
+    const session = loadSession();
+    if (!session) return res.status(400).json({ error: "No active session" });
+
+    const dir = path.join(CAPTURE_DIR, session.folder);
+    if (!fs.existsSync(dir)) return res.json({ deleted: 0 });
+
+    const files = fs.readdirSync(dir)
+        .filter(f => f.startsWith("photo_") && f.endsWith(".jpg"));
+
+    let deleted = 0;
+    const errors = [];
+
+    files.forEach(f => {
+        try {
+            fs.unlinkSync(path.join(dir, f));
+            deleted++;
+        } catch (e) {
+            errors.push(f);
+        }
+    });
+
+    lastUpdate = Date.now();
+    console.log(`Deleted ${deleted} images from session "${session.name}"`);
+
+    if (errors.length > 0) {
+        return res.status(207).json({ deleted, errors });
+    }
+    res.json({ deleted });
 });
 
 // ── Enhancement settings ──────────────────────────────────────────────────────
@@ -164,10 +241,35 @@ app.post("/settings", (req, res) => {
     res.json(updated);
 });
 
+// ── Student flags ─────────────────────────────────────────────────────────────
+app.get("/flags", (req, res) => res.json(flags));
+
+app.post("/flag", (req, res) => {
+    const { filename } = req.body;
+    if (!filename) return res.status(400).json({ error: "filename required" });
+    flags[filename] = (flags[filename] || 0) + 1;
+    res.json({ ok: true, count: flags[filename] });
+});
+
+app.delete("/flag", (req, res) => {
+    const { filename } = req.body;
+    if (!filename) return res.status(400).json({ error: "filename required" });
+    if (flags[filename] && flags[filename] > 0) {
+        flags[filename]--;
+        if (flags[filename] === 0) delete flags[filename];
+    }
+    res.json({ ok: true });
+});
+
+app.delete("/flags", (req, res) => {
+    flags = {};
+    res.json({ ok: true });
+});
+
 // ── Last update ───────────────────────────────────────────────────────────────
 app.get("/last-update", (req, res) => res.json({ lastUpdate }));
 
-// ── Image list (session-scoped) ───────────────────────────────────────────────
+// ── Image list ────────────────────────────────────────────────────────────────
 app.get("/images-list", (req, res) => {
     const dir   = activeCaptureDir();
     const files = getSortedPhotos(dir).map(f => prefixFile(f));
@@ -205,8 +307,7 @@ app.post("/upload", upload.single("image"), (req, res) => {
     res.json({ filename: prefixFile(req.file.filename) });
 });
 
-// ── Download — supports "folder/filename" paths ───────────────────────────────
-// Fix: Express 5 requires named wildcard params, not bare *
+// ── Download ──────────────────────────────────────────────────────────────────
 app.get("/download/:folder/:filename", (req, res) => {
     const filepath = path.join(CAPTURE_DIR, req.params.folder, req.params.filename);
     if (!fs.existsSync(filepath)) return res.status(404).json({ error: "File not found" });
@@ -219,7 +320,7 @@ app.get("/download/:filename", (req, res) => {
     res.download(filepath);
 });
 
-// ── Delete — supports "folder/filename" paths ─────────────────────────────────
+// ── Delete single image ───────────────────────────────────────────────────────
 app.delete("/images/:folder/:filename", (req, res) => {
     const filepath = path.join(CAPTURE_DIR, req.params.folder, req.params.filename);
     fs.unlink(filepath, (err) => {

@@ -39,21 +39,29 @@
       color: var(--text);
     }
 
-    .session-name-input:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
+    .session-name-input:focus { outline: none; border-color: var(--accent); }
+    .session-name-input:disabled { opacity: 0.5; }
 
     .session-badge {
       font-size: 0.8rem;
       color: var(--muted);
       letter-spacing: 0.06em;
-      margin-left: 4px;
     }
 
-    .session-badge.active {
-      color: #16a34a;
-      font-weight: 600;
+    .session-badge.active { color: #16a34a; font-weight: 600; }
+
+    /* Session requirement notice shown when no session active */
+    #sessionRequiredNotice {
+      width: 100%;
+      max-width: 900px;
+      border: 1px solid var(--border);
+      background: #fffbeb;
+      padding: 14px 20px;
+      font-size: 0.88rem;
+      color: #92400e;
+      letter-spacing: 0.02em;
+      margin-bottom: 16px;
+      display: none;
     }
 
     /* Enhancement sliders */
@@ -62,7 +70,6 @@
       flex-wrap: wrap;
       gap: 20px;
       align-items: center;
-      margin-top: 4px;
     }
 
     .slider-group {
@@ -85,13 +92,12 @@
 
     .slider-group span {
       font-size: 0.8rem;
-      color: var(--text);
       min-width: 36px;
       text-align: right;
       font-variant-numeric: tabular-nums;
     }
 
-    /* Auto-capture */
+    /* Timer */
     .timer-row {
       display: flex;
       flex-wrap: wrap;
@@ -116,10 +122,60 @@
       font-size: 0.8rem;
       color: var(--muted);
       letter-spacing: 0.04em;
-      min-width: 120px;
     }
 
     #timerCountdown.running { color: #16a34a; font-weight: 600; }
+
+    /* Danger button style */
+    .btn-danger {
+      border-color: #dc2626 !important;
+      color: #dc2626 !important;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: #dc2626 !important;
+      color: #fff !important;
+    }
+
+    /* Flag panel */
+    .flag-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .flag-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .flag-item:hover { background: var(--surface); }
+    .flag-item .flag-filename { color: var(--text); }
+    .flag-item .flag-count { font-size: 0.75rem; color: var(--muted); }
+
+    .flag-count-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: var(--bg);
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-left: 6px;
+    }
+
+    #noFlagsMsg { font-size: 0.85rem; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -130,6 +186,11 @@
     <div class="divider"></div>
   </header>
 
+  <!-- ── Session Required Notice (shown when no session active) ── -->
+  <div id="sessionRequiredNotice">
+    ⚠ You must start a session before taking photos. Enter a session name below and click <strong>Start Session</strong>.
+  </div>
+
   <!-- ── Session Panel ── -->
   <div class="panel">
     <h2>Session</h2>
@@ -139,6 +200,13 @@
       <button class="nav-btn" id="startSessionBtn">Start Session</button>
       <button class="nav-btn" id="endSessionBtn" disabled>End Session</button>
       <span class="session-badge" id="sessionBadge">No active session</span>
+    </div>
+    <!-- Delete all — only shown when session is active -->
+    <div id="deleteAllRow" style="margin-top: 14px; display: none;">
+      <button class="nav-btn btn-danger" id="deleteAllBtn">🗑 Delete All Images in Session</button>
+      <span style="font-size:0.78rem;color:var(--muted);margin-left:10px">
+        Permanently deletes all photos captured in the current session.
+      </span>
     </div>
   </div>
 
@@ -166,22 +234,39 @@
     </div>
   </div>
 
-  <!-- ── Auto-Capture Panel ── -->
+  <!-- ── Auto-Capture Timer Panel ── -->
   <div class="panel">
     <h2>Auto-Capture</h2>
     <div class="timer-row">
       <input class="timer-input" id="timerInterval" type="number" min="5" max="600" value="60">
       <span style="font-size:0.8rem;color:var(--muted)">seconds</span>
-      <button class="nav-btn" id="startTimerBtn">Start Timer</button>
+      <button class="nav-btn" id="startTimerBtn" disabled>Start Timer</button>
       <button class="nav-btn" id="stopTimerBtn" disabled>Stop Timer</button>
       <span id="timerCountdown">Timer off</span>
     </div>
   </div>
 
+  <!-- ── Student Flags Panel ── -->
+  <div class="panel">
+    <h2>
+      Student Flags
+      <span class="flag-count-badge" id="totalFlagBadge" style="display:none"></span>
+    </h2>
+    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">
+      Students can flag images they want to revisit. Click a flagged image below to jump to it.
+    </p>
+    <div class="flag-list" id="flagList">
+      <span id="noFlagsMsg">No flags yet.</span>
+    </div>
+    <div style="margin-top:12px">
+      <button class="nav-btn" id="clearAllFlagsBtn">Clear All Flags</button>
+    </div>
+  </div>
+
   <!-- ── Main Controls ── -->
   <div class="button-row">
-    <button class="nav-btn" id="captureBtn">📷 Take Photo</button>
-    <button class="nav-btn" id="uploadBtn">⬆ Upload Image</button>
+    <button class="nav-btn" id="captureBtn" disabled>📷 Take Photo</button>
+    <button class="nav-btn" id="uploadBtn" disabled>⬆ Upload Image</button>
     <input type="file" id="uploadInput" accept="image/*" style="display:none">
     <button class="nav-btn" id="deleteBtn">✕ Delete Current</button>
     <a class="nav-btn" href="calibrate.html">⚙ Calibrate</a>
@@ -192,7 +277,7 @@
 
   <div class="image-frame">
     <img id="cameraFeed" src="" alt="Camera Feed">
-    <div class="image-label" id="imageLabel">Latest Capture</div>
+    <div class="image-label" id="imageLabel">Start a session to begin capturing</div>
   </div>
 
   <div class="nav-buttons">
