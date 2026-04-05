@@ -5,6 +5,122 @@
   <title>Professor's View</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .panel {
+      width: 100%;
+      max-width: 900px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+
+    .panel h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      margin-bottom: 14px;
+    }
+
+    .panel-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .session-name-input {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+      padding: 9px 14px;
+      flex: 1;
+      min-width: 200px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .session-name-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .session-badge {
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      margin-left: 4px;
+    }
+
+    .session-badge.active {
+      color: #16a34a;
+      font-weight: 600;
+    }
+
+    /* Enhancement sliders */
+    .slider-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .slider-group label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      min-width: 80px;
+    }
+
+    .slider-group input[type=range] {
+      width: 120px;
+      accent-color: var(--accent);
+    }
+
+    .slider-group span {
+      font-size: 0.8rem;
+      color: var(--text);
+      min-width: 36px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Auto-capture */
+    .timer-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .timer-input {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+      padding: 9px 14px;
+      width: 80px;
+      background: var(--bg);
+      color: var(--text);
+      text-align: center;
+    }
+
+    .timer-input:focus { outline: none; border-color: var(--accent); }
+
+    #timerCountdown {
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      min-width: 120px;
+    }
+
+    #timerCountdown.running { color: #16a34a; font-weight: 600; }
+  </style>
 </head>
 <body>
 
@@ -14,19 +130,69 @@
     <div class="divider"></div>
   </header>
 
+  <!-- ── Session Panel ── -->
+  <div class="panel">
+    <h2>Session</h2>
+    <div class="panel-row">
+      <input class="session-name-input" id="sessionNameInput" type="text"
+             placeholder="e.g. Lecture 12 — Derivatives" maxlength="80">
+      <button class="nav-btn" id="startSessionBtn">Start Session</button>
+      <button class="nav-btn" id="endSessionBtn" disabled>End Session</button>
+      <span class="session-badge" id="sessionBadge">No active session</span>
+    </div>
+  </div>
+
+  <!-- ── Image Enhancement Panel ── -->
+  <div class="panel">
+    <h2>Image Enhancement</h2>
+    <div class="slider-row">
+      <div class="slider-group">
+        <label>Brightness</label>
+        <input type="range" id="brightnessSlider" min="-100" max="100" value="0" step="1">
+        <span id="brightnessVal">0</span>
+      </div>
+      <div class="slider-group">
+        <label>Contrast</label>
+        <input type="range" id="contrastSlider" min="0.5" max="2.0" value="1.0" step="0.05">
+        <span id="contrastVal">1.0</span>
+      </div>
+      <div class="slider-group">
+        <label>Sharpness</label>
+        <input type="range" id="sharpnessSlider" min="0" max="1" value="0.25" step="0.05">
+        <span id="sharpnessVal">0.25</span>
+      </div>
+      <button class="nav-btn" id="saveSettingsBtn">Apply</button>
+      <button class="nav-btn" id="resetSettingsBtn">Reset</button>
+    </div>
+  </div>
+
+  <!-- ── Auto-Capture Panel ── -->
+  <div class="panel">
+    <h2>Auto-Capture</h2>
+    <div class="timer-row">
+      <input class="timer-input" id="timerInterval" type="number" min="5" max="600" value="60">
+      <span style="font-size:0.8rem;color:var(--muted)">seconds</span>
+      <button class="nav-btn" id="startTimerBtn">Start Timer</button>
+      <button class="nav-btn" id="stopTimerBtn" disabled>Stop Timer</button>
+      <span id="timerCountdown">Timer off</span>
+    </div>
+  </div>
+
+  <!-- ── Main Controls ── -->
   <div class="button-row">
-    <button class="nav-btn" id="captureBtn">Take Photo</button>
-    <button class="nav-btn" id="uploadBtn">Upload Image</button>
+    <button class="nav-btn" id="captureBtn">📷 Take Photo</button>
+    <button class="nav-btn" id="uploadBtn">⬆ Upload Image</button>
     <input type="file" id="uploadInput" accept="image/*" style="display:none">
-    <button class="nav-btn" id="deleteBtn">Delete Current</button>
+    <button class="nav-btn" id="deleteBtn">✕ Delete Current</button>
     <a class="nav-btn" href="calibrate.html">⚙ Calibrate</a>
+    <a class="nav-btn" href="qr.html">⬡ Student QR</a>
   </div>
 
   <p id="status"></p>
 
   <div class="image-frame">
     <img id="cameraFeed" src="" alt="Camera Feed">
-    <div class="image-label">Latest Capture</div>
+    <div class="image-label" id="imageLabel">Latest Capture</div>
   </div>
 
   <div class="nav-buttons">

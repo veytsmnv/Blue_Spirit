@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student QR Code</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .qr-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      max-width: 480px;
+      width: 100%;
+    }
+
+    .qr-card img {
+      width: 280px;
+      height: 280px;
+      display: block;
+      border: 1px solid var(--border);
+    }
+
+    .qr-url {
+      font-size: 0.85rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      word-break: break-all;
+      text-align: center;
+    }
+
+    .qr-instruction {
+      font-size: 1rem;
+      color: var(--text);
+      text-align: center;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Student <span>Access</span></h1>
+    <p>Scan to join this session</p>
+    <div class="divider"></div>
+  </header>
+
+  <div class="qr-card">
+    <p class="qr-instruction">
+      Point your phone camera at the QR code to open the student view.
+    </p>
+    <img id="qrImage" src="/qr.png" alt="QR Code">
+    <p class="qr-url" id="qrUrl">Loading…</p>
+  </div>
+
+  <div class="nav-buttons" style="margin-top: 32px;">
+    <a class="nav-btn" href="professor.html">← Back to Professor View</a>
+  </div>
+
+  <script>
+    // Display the URL text below the QR code
+    fetch("/qr-info")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("qrUrl").textContent = data.url;
+      });
+  </script>
+
+</body>
+</html>
