@@ -137,9 +137,8 @@ function buildHandles() {
     circle.addEventListener("pointermove", e => {
       if (dragging === null || dragging.index !== i) return;
       const r = displayRect();
-      const svgRect = calibrateSvg.getBoundingClientRect();
-      const rawX = (e.clientX - svgRect.left) / r.width;
-      const rawY = (e.clientY - svgRect.top)  / r.height;
+      const rawX = (e.clientX - r.left) / r.width;
+      const rawY = (e.clientY - r.top)  / r.height;
       corners[i] = {
         x: Math.max(0, Math.min(1, rawX)),
         y: Math.max(0, Math.min(1, rawY))

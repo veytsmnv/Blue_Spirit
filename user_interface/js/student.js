@@ -271,7 +271,6 @@ setInterval(() => {
 // ── Startup ───────────────────────────────────────────────────────────────────
 loadImageList().then(() => {
     if (images.length > 0) {
-        knownLastUpdate = Date.now();
         showImage(images.length - 1);
     }
 });

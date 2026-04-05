@@ -293,7 +293,7 @@ app.post("/capture", (req, res) => {
             return res.status(500).json({ error: "Capture failed", detail: stderr });
         }
         lastUpdate = Date.now();
-        const rawFilename = stdout.trim().split("/").pop();
+        const rawFilename = stdout.trim().split(/[\\/]/).pop().replace(/^Saved:\s*/i, "");
         res.json({ filename: prefixFile(rawFilename) });
     });
 });

@@ -260,13 +260,13 @@ startSessionBtn.addEventListener("click", () => {
 endSessionBtn.addEventListener("click", async () => {
     if (!activeSession) return;
 
-    const imageCount = images.length;
+    const count = images.length;
 
     // Step 1 — ask about deletion if there are images
-    if (imageCount > 0) {
+    if (count > 0) {
         const choice = confirm(
             `End session "${activeSession.name}"?\n\n` +
-            `Click OK to delete all ${imageCount} image${imageCount !== 1 ? "s" : ""} and end the session.\n` +
+            `Click OK to delete all ${count} image${count !== 1 ? "s" : ""} and end the session.\n` +
             `Click Cancel to end the session without deleting images.`
         );
 
